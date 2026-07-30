@@ -54,20 +54,24 @@ export class GraphSystem {
     const controls = document.createElement('div');
     controls.className = 'graph-controls';
 
+    const topRow = document.createElement('div');
+    topRow.className = 'graph-controls__row';
+
     this.channelSelect = createSelect({
       id: 'graph-channel',
       label: 'Channel',
       options: [],
       onChange: () => this.scheduleDraw(),
     });
-    controls.appendChild(this.channelSelect.root);
+    topRow.appendChild(this.channelSelect.root);
 
     const exportBtn = createButton({
       label: 'Export CSV',
       variant: 'secondary',
       onClick: () => this.exportCsv(),
     });
-    controls.appendChild(exportBtn);
+    topRow.appendChild(exportBtn);
+    controls.appendChild(topRow);
 
     const scrubRow = document.createElement('div');
     scrubRow.className = 'graph-scrub';

@@ -55,6 +55,7 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
   private string2: THREE.Line | null = null;
   private string1Pts: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
   private string2Pts: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
+  private stopped = false;
 
   setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
@@ -84,21 +85,22 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
   }
 
   update(dt: number): void {
+    if (this.stopped) return;
+
     this.prevState[0] = this.state[0];
     this.prevState[1] = this.state[1];
 
     const a = theoreticalAtwoodAcceleration(this.params.mass1, this.params.mass2, this.params.gravity);
     this.integrator.step(this.state, (s, out) => atwoodDerivatives(s, this.params, out), dt);
 
-    // Soft travel limits so masses do not pass through the pulley.
+    // Travel limits: freeze at last valid sample (avoid zeroing v, which spikes energy loss).
     const maxX = STRING_HALF - 0.35;
     const minX = -(STRING_HALF - 0.35);
-    if (this.state[0] > maxX) {
-      this.state[0] = maxX;
-      this.state[1] = 0;
-    } else if (this.state[0] < minX) {
-      this.state[0] = minX;
-      this.state[1] = 0;
+    if (this.state[0] > maxX || this.state[0] < minX) {
+      this.state[0] = this.prevState[0];
+      this.state[1] = this.prevState[1];
+      this.stopped = true;
+      return;
     }
 
     const energy = computeAtwoodEnergy(this.state, this.params);
@@ -121,6 +123,7 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
     this.state = createAtwoodState(this.params);
     this.prevState[0] = this.state[0];
     this.prevState[1] = this.state[1];
+    this.stopped = false;
     this.initialEnergyTotal = computeAtwoodEnergy(this.state, this.params).total;
     this.recorder?.clear();
     this.syncVisuals(this.state[0]);

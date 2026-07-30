@@ -65,6 +65,7 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
+  min-height: 0;
 }
 
 .panel-resize-handle {
@@ -107,14 +108,24 @@ body.is-resizing-panel #simulation-canvas {
 }
 
 #scalar-display {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 42%;
+  overflow-y: auto;
 }
 
 #graph-system {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+#graph-system > .graph-panel {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .viewport {
