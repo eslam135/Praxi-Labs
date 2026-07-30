@@ -25,7 +25,14 @@ import {
 } from '../physics/equations/atwood';
 import { percentDifference } from '../physics/analysis/period';
 import { energyDriftPercent } from '../physics/analysis/energy';
-import { createBox, createLine, createSphere, updateLinePoints } from '../rendering/objects/primitives';
+import {
+  createBox,
+  createCable,
+  createPulleyWheel,
+  fillPulleyCablePoints,
+  pulleyCablePointCount,
+  updateLinePoints,
+} from '../rendering/objects/primitives';
 
 const DEFAULT_PARAMS: AtwoodParams = {
   mass1: 2,
@@ -34,11 +41,16 @@ const DEFAULT_PARAMS: AtwoodParams = {
   initialDisplacement: 0,
 };
 
-/** Half-string length from pulley axle to each mass at x = 0 (m). */
-const STRING_HALF = 2.5;
-const PULLEY_Y = 4;
-const PULLEY_RADIUS = 0.25;
-const MASS_SEP_X = 0.9;
+/** Rest length of each hanging segment from pulley tangent to mass top (m). */
+const STRING_HALF = 2.2;
+const PULLEY_Y = 3.6;
+const PULLEY_RADIUS = 0.35;
+const PULLEY_THICKNESS = 0.14;
+/** Hang masses directly under left/right tangent points for vertical cables. */
+const MASS_SEP_X = PULLEY_RADIUS;
+const MASS_SIZE = 0.4;
+const ARC_SEGMENTS = 16;
+const FLOOR_CLEARANCE = 0.22;
 
 export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
   private params: AtwoodParams = { ...DEFAULT_PARAMS };
@@ -51,11 +63,16 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
   private pulley: THREE.Mesh | null = null;
   private mass1: THREE.Mesh | null = null;
   private mass2: THREE.Mesh | null = null;
-  private string1: THREE.Line | null = null;
-  private string2: THREE.Line | null = null;
-  private string1Pts: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
-  private string2Pts: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
+  private cable: THREE.Line | null = null;
+  private cablePts: THREE.Vector3[] = [];
   private stopped = false;
+
+  /** Max |x| before a mass hits the floor or rises into the pulley. */
+  private travelLimit(): number {
+    const floorLimit = PULLEY_Y - STRING_HALF - FLOOR_CLEARANCE;
+    const pulleyLimit = STRING_HALF - PULLEY_RADIUS - MASS_SIZE * 0.35;
+    return Math.max(0.2, Math.min(floorLimit, pulleyLimit));
+  }
 
   setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
@@ -66,20 +83,30 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
     this.recorder.registerChannel('energy_potential', 'Potential Energy', 'J');
     this.recorder.registerChannel('energy_total', 'Total Energy', 'J');
 
-    const stand = createBox(context.renderKit, context.root, 0.15, 4.2, 0.15, 0x607d8b);
-    stand.position.set(0, PULLEY_Y - 2.1, -0.4);
+    const stand = createBox(context.renderKit, context.root, 0.16, PULLEY_Y - 0.2, 0.16, 0x546e7a);
+    stand.position.set(0, (PULLEY_Y - 0.2) / 2, -0.35);
 
-    this.pulley = createSphere(context.renderKit, context.root, PULLEY_RADIUS, 0x90a4ae);
+    const crossbar = createBox(context.renderKit, context.root, 0.5, 0.1, 0.1, 0x78909c);
+    crossbar.position.set(0, PULLEY_Y, -0.28);
+
+    this.pulley = createPulleyWheel(
+      context.renderKit,
+      context.root,
+      PULLEY_RADIUS,
+      PULLEY_THICKNESS,
+      0xb0bec5,
+    );
     this.pulley.position.set(0, PULLEY_Y, 0);
-    this.pulley.scale.set(1, 0.35, 1);
 
-    this.mass1 = createBox(context.renderKit, context.root, 0.4, 0.4, 0.4, 0x4fc3f7);
-    this.mass2 = createBox(context.renderKit, context.root, 0.4, 0.4, 0.4, 0xff7043);
+    this.mass1 = createBox(context.renderKit, context.root, MASS_SIZE, MASS_SIZE, MASS_SIZE, 0x4fc3f7);
+    this.mass2 = createBox(context.renderKit, context.root, MASS_SIZE, MASS_SIZE, MASS_SIZE, 0xff7043);
 
-    this.string1Pts = [new THREE.Vector3(), new THREE.Vector3()];
-    this.string2Pts = [new THREE.Vector3(), new THREE.Vector3()];
-    this.string1 = createLine(context.renderKit, context.root, this.string1Pts, 0xcfd8dc);
-    this.string2 = createLine(context.renderKit, context.root, this.string2Pts, 0xcfd8dc);
+    const count = pulleyCablePointCount(ARC_SEGMENTS);
+    this.cablePts = new Array(count);
+    for (let i = 0; i < count; i++) {
+      this.cablePts[i] = new THREE.Vector3();
+    }
+    this.cable = createCable(context.renderKit, context.root, this.cablePts, 0xeceff1);
 
     this.syncVisuals(this.state[0]);
   }
@@ -93,10 +120,8 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
     const a = theoreticalAtwoodAcceleration(this.params.mass1, this.params.mass2, this.params.gravity);
     this.integrator.step(this.state, (s, out) => atwoodDerivatives(s, this.params, out), dt);
 
-    // Travel limits: freeze at last valid sample (avoid zeroing v, which spikes energy loss).
-    const maxX = STRING_HALF - 0.35;
-    const minX = -(STRING_HALF - 0.35);
-    if (this.state[0] > maxX || this.state[0] < minX) {
+    const limit = this.travelLimit();
+    if (this.state[0] > limit || this.state[0] < -limit) {
       this.state[0] = this.prevState[0];
       this.state[1] = this.prevState[1];
       this.stopped = true;
@@ -133,10 +158,8 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
     this.pulley = null;
     this.mass1 = null;
     this.mass2 = null;
-    this.string1 = null;
-    this.string2 = null;
-    this.string1Pts = [];
-    this.string2Pts = [];
+    this.cable = null;
+    this.cablePts = [];
   }
 
   getMeasurements(): MeasurementSnapshot {
@@ -187,8 +210,8 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
         label: 'Initial m1 Displacement',
         type: 'slider',
         default: 0,
-        min: -1.5,
-        max: 1.5,
+        min: -1.2,
+        max: 1.2,
         step: 0.05,
         unit: 'm',
         description: 'Downward offset of mass 1 from the symmetric string position.',
@@ -203,33 +226,45 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
       gravity: Number(params.gravity ?? this.params.gravity),
       initialDisplacement: Number(params.initialDisplacement ?? this.params.initialDisplacement),
     };
+    const limit = this.travelLimit();
+    this.params.initialDisplacement = Math.max(
+      -limit,
+      Math.min(limit, this.params.initialDisplacement),
+    );
     this.reset();
   }
 
   private syncVisuals(x: number): void {
     if (!this.mass1 || !this.mass2) return;
 
-    const y1 = PULLEY_Y - (STRING_HALF + x);
-    const y2 = PULLEY_Y - (STRING_HALF - x);
+    const s1 = 0.85 + 0.12 * Math.cbrt(this.params.mass1);
+    const s2 = 0.85 + 0.12 * Math.cbrt(this.params.mass2);
+    this.mass1.scale.setScalar(s1);
+    this.mass2.scale.setScalar(s2);
+
+    const half1 = (MASS_SIZE * s1) / 2;
+    const half2 = (MASS_SIZE * s2) / 2;
+
+    // Mass centers hang so tops sit STRING_HALF±x below the axle height's tangent.
+    const y1 = PULLEY_Y - (STRING_HALF + x) - half1;
+    const y2 = PULLEY_Y - (STRING_HALF - x) - half2;
 
     this.mass1.position.set(-MASS_SEP_X, y1, 0);
     this.mass2.position.set(MASS_SEP_X, y2, 0);
 
-    // Scale boxes slightly with mass for visual feedback (no per-frame alloc).
-    const s1 = 0.35 + 0.08 * Math.cbrt(this.params.mass1);
-    const s2 = 0.35 + 0.08 * Math.cbrt(this.params.mass2);
-    this.mass1.scale.setScalar(s1 / 0.4);
-    this.mass2.scale.setScalar(s2 / 0.4);
-
-    if (this.string1 && this.string1Pts.length === 2) {
-      this.string1Pts[0].set(-PULLEY_RADIUS, PULLEY_Y, 0);
-      this.string1Pts[1].set(-MASS_SEP_X, y1 + 0.2 * (s1 / 0.4), 0);
-      updateLinePoints(this.string1, this.string1Pts);
-    }
-    if (this.string2 && this.string2Pts.length === 2) {
-      this.string2Pts[0].set(PULLEY_RADIUS, PULLEY_Y, 0);
-      this.string2Pts[1].set(MASS_SEP_X, y2 + 0.2 * (s2 / 0.4), 0);
-      updateLinePoints(this.string2, this.string2Pts);
+    if (this.cable && this.cablePts.length >= pulleyCablePointCount(ARC_SEGMENTS)) {
+      fillPulleyCablePoints(
+        this.cablePts,
+        -MASS_SEP_X,
+        y1 + half1,
+        MASS_SEP_X,
+        y2 + half2,
+        0,
+        PULLEY_Y,
+        PULLEY_RADIUS,
+        ARC_SEGMENTS,
+      );
+      updateLinePoints(this.cable, this.cablePts);
     }
   }
 

@@ -80,6 +80,26 @@ export function createLine(
   return renderKit.addToScene(parent, line) as THREE.Line;
 }
 
+/**
+ * Cable/rope line that draws cleanly over meshes (pulleys, anchors).
+ * Prefer this over createLine for strings that must not look clipped.
+ */
+export function createCable(
+  renderKit: RenderKit,
+  parent: THREE.Object3D,
+  points: THREE.Vector3[],
+  color: number,
+): THREE.Line {
+  const line = createLine(renderKit, parent, points, color);
+  const mat = line.material;
+  if (mat instanceof THREE.LineBasicMaterial || mat instanceof THREE.LineDashedMaterial) {
+    mat.depthTest = true;
+    mat.depthWrite = false;
+  }
+  line.renderOrder = 10;
+  return line;
+}
+
 export function updateLinePoints(line: THREE.Line, points: THREE.Vector3[]): void {
   const geometry = line.geometry as THREE.BufferGeometry;
   const needed = points.length * 3;
@@ -103,6 +123,72 @@ export function updateLinePoints(line: THREE.Line, points: THREE.Vector3[]): voi
   if (mat instanceof THREE.LineDashedMaterial) {
     line.computeLineDistances();
   }
+}
+
+/**
+ * Face-on pulley wheel (axle along Z) for Atwood-style setups.
+ * Extension: Reuse for any cable-over-wheel visual.
+ */
+export function createPulleyWheel(
+  renderKit: RenderKit,
+  parent: THREE.Object3D,
+  radius: number,
+  thickness: number,
+  color: number,
+): THREE.Mesh {
+  const geometry = renderKit.track(new THREE.CylinderGeometry(radius, radius, thickness, 32));
+  const material = renderKit.track(
+    new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.45,
+      roughness: 0.35,
+    }),
+  );
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return renderKit.addToScene(parent, mesh) as THREE.Mesh;
+}
+
+/** Vertex count for fillPulleyCablePoints (left hang + arc + right hang). */
+export function pulleyCablePointCount(arcSegments: number): number {
+  return arcSegments + 3;
+}
+
+/**
+ * Continuous cable over a circular pulley in the XY plane (axle // Z).
+ * Arc runs over the top from left tangent (π) to right tangent (0).
+ * Reuses preallocated `out` vectors — no per-frame allocation.
+ */
+export function fillPulleyCablePoints(
+  out: THREE.Vector3[],
+  leftX: number,
+  leftY: number,
+  rightX: number,
+  rightY: number,
+  pulleyX: number,
+  pulleyY: number,
+  radius: number,
+  arcSegments: number,
+  z = 0.04,
+): void {
+  const needed = pulleyCablePointCount(arcSegments);
+  if (out.length < needed) {
+    throw new Error(`fillPulleyCablePoints expects >= ${needed} preallocated points`);
+  }
+
+  let i = 0;
+  out[i++].set(leftX, leftY, z);
+  for (let s = 0; s <= arcSegments; s++) {
+    const theta = Math.PI - (Math.PI * s) / arcSegments;
+    out[i++].set(
+      pulleyX + radius * Math.cos(theta),
+      pulleyY + radius * Math.sin(theta),
+      z,
+    );
+  }
+  out[i++].set(rightX, rightY, z);
 }
 
 /** Number of vertices for a coil spring (inclusive of both ends). */
