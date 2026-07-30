@@ -17,9 +17,14 @@ import { ExperimentSwitcher } from './ui/ExperimentSwitcher';
 import { ScalarDisplay } from './ui/ScalarDisplay';
 import { TopBar } from './ui/TopBar';
 import { UIUpdateScheduler } from './ui/UIUpdateScheduler';
+import { ResultsPanelResize } from './ui/ResultsPanelResize';
 
 const canvas = document.getElementById('simulation-canvas') as HTMLCanvasElement;
 if (!canvas) throw new Error('Canvas element not found');
+
+const appBody = document.querySelector('.app-body') as HTMLElement;
+const resultsPanel = document.querySelector('.panel--results') as HTMLElement;
+if (!appBody || !resultsPanel) throw new Error('Layout panels not found');
 
 const sceneManager = new SceneManager(canvas);
 const parameterStore = new ParameterStore();
@@ -32,6 +37,12 @@ const parameterPanel = new ParameterPanel(
 const graphSystem = new GraphSystem(document.getElementById('graph-system')!);
 const scalarDisplay = new ScalarDisplay(document.getElementById('scalar-display')!);
 const uiScheduler = new UIUpdateScheduler(scalarDisplay, graphSystem);
+
+const resultsResize = new ResultsPanelResize(resultsPanel, appBody);
+resultsResize.onResize(() => {
+  graphSystem.notifyLayoutChange();
+  window.dispatchEvent(new Event('resize'));
+});
 
 const switcher = new ExperimentSwitcher(
   document.getElementById('experiment-switcher')!,

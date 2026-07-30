@@ -39,6 +39,19 @@ describe('comparison merge', () => {
     expect(merged.channels[0].id).toBe('angle');
     expect(merged.channels[1].id).toBe(`angle${COMPARISON_B_SUFFIX}`);
     expect(merged.channels[1].label).toContain('(B)');
+    expect(merged.primaryCount).toBe(3);
+    expect(merged.secondaryCount).toBe(3);
+  });
+
+  it('uses the longer series for time axis when B outlasts A', () => {
+    const a = makeSnapshot('angle', [0.1, 0.2]);
+    const b = makeSnapshot('angle', [0.4, 0.5, 0.6, 0.7]);
+    const merged = mergeComparisonSnapshots(a, b);
+
+    expect(merged.count).toBe(4);
+    expect(merged.primaryCount).toBe(2);
+    expect(merged.secondaryCount).toBe(4);
+    expect(merged.time).toBe(b.time);
   });
 });
 

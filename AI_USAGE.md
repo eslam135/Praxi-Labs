@@ -45,6 +45,14 @@
 
 **Fix:** Preallocate coil `Vector3` buffers and update helix points in place each frame via `updateSpringPoints`.
 
+### 4. Results Panel Resize Grew Off-Screen to the Right
+
+**Problem:** AI implemented a drag-to-resize handle for the right results column by only updating `--panel-width-results`, while the center grid track used bare `1fr`. CSS Grid’s default `min-width: auto` on that track prevented the 3D viewport from shrinking, so increasing the results width expanded the whole layout past the window’s right edge instead of growing left into the canvas.
+
+**Detection:** Manual UI check — dragging the handle made the Results / Time Series panel expand out of the screen to the right rather than reclaiming space from the viewport.
+
+**Fix:** Changed the center column to `minmax(0, 1fr)`, set `min-width: 0` / `overflow: hidden` on the viewport, and clamped resize width so params + a minimum viewport width always remain visible.
+
 ## Parts Written Fully by Hand
 
 - `.cursor/rules/` architecture constraints (pre-existing in repo)

@@ -38,11 +38,12 @@
   gap: var(--space-1);
 }
 
-/* Main body grid */
+/* Main body grid — minmax(0, 1fr) lets the viewport shrink when the results panel grows leftward */
 .app-body {
   display: grid;
-  grid-template-columns: var(--panel-width-params) 1fr var(--panel-width-results);
+  grid-template-columns: var(--panel-width-params) minmax(0, 1fr) var(--panel-width-results);
   flex: 1;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -51,22 +52,77 @@
   border-right: 1px solid var(--color-border);
   overflow-y: auto;
   padding: var(--space-2);
+  min-width: 0;
 }
 
 .panel--results {
+  position: relative;
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
-  overflow-y: auto;
+  overflow: hidden;
   padding: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+.panel-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+  touch-action: none;
+}
+
+.panel-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 48px;
+  border-radius: 1px;
+  background: var(--color-border);
+  transition: background var(--transition-fast);
+}
+
+.panel-resize-handle:hover::after,
+.panel-resize-handle:focus-visible::after,
+body.is-resizing-panel .panel-resize-handle::after {
+  background: var(--color-accent);
+}
+
+body.is-resizing-panel {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-resizing-panel #simulation-canvas {
+  pointer-events: none;
+}
+
+#scalar-display {
+  flex-shrink: 0;
+}
+
+#graph-system {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .viewport {
   position: relative;
   background: var(--color-bg);
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 #simulation-canvas {

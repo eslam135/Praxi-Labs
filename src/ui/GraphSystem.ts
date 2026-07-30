@@ -23,6 +23,10 @@ function isEnergyChannel(id: string): boolean {
   return id.startsWith('energy_') && !id.endsWith(COMPARISON_B_SUFFIX);
 }
 
+function isBChannel(id: string): boolean {
+  return id.endsWith(COMPARISON_B_SUFFIX);
+}
+
 export class GraphSystem {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -30,6 +34,7 @@ export class GraphSystem {
   private latestSnapshot: MeasurementSnapshot | null = null;
   private cachedChannelIds = '';
   private drawPending = false;
+  private resizeObserver: ResizeObserver;
 
   constructor(container: HTMLElement) {
     const panel = createPanel({ title: 'Time Series', className: 'graph-panel' });
@@ -56,19 +61,21 @@ export class GraphSystem {
 
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'graph-canvas';
-    this.containerAppendCanvas(panel.body);
+    panel.body.appendChild(this.canvas);
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
 
     container.appendChild(panel.root);
-    window.addEventListener('resize', () => this.resizeCanvas());
+    this.resizeObserver = new ResizeObserver(() => this.resizeCanvas());
+    this.resizeObserver.observe(this.canvas);
     this.resizeCanvas();
   }
 
-  private containerAppendCanvas(parent: HTMLElement): void {
-    parent.appendChild(this.canvas);
+  /** Public hook for panel resize / layout changes. */
+  notifyLayoutChange(): void {
+    this.resizeCanvas();
   }
 
   updateSnapshot(snapshot: MeasurementSnapshot): void {
@@ -92,7 +99,7 @@ export class GraphSystem {
     }
 
     for (const channel of snapshot.channels) {
-      if (channel.id.endsWith(COMPARISON_B_SUFFIX)) continue;
+      if (isBChannel(channel.id)) continue;
       options.push({
         value: channel.id,
         label: `${channel.label} (${channel.unit})`,
@@ -102,7 +109,6 @@ export class GraphSystem {
     const preferEnergy = hasEnergy && this.channelSelect.select.value === '';
     this.channelSelect.setOptions(options, preferEnergy ? ENERGY_MODE : undefined);
 
-    // Prefer energy plot when channels first appear and previous selection is gone.
     if (hasEnergy) {
       const current = this.channelSelect.select.value;
       const valid = options.some((o) => o.value === current);
@@ -121,11 +127,27 @@ export class GraphSystem {
 
   private resizeCanvas(): void {
     const rect = this.canvas.getBoundingClientRect();
-    if (rect.width === 0) return;
-    this.canvas.width = rect.width * devicePixelRatio;
-    this.canvas.height = rect.height * devicePixelRatio;
+    if (rect.width < 2 || rect.height < 2) return;
+    const nextW = Math.floor(rect.width * devicePixelRatio);
+    const nextH = Math.floor(rect.height * devicePixelRatio);
+    if (this.canvas.width === nextW && this.canvas.height === nextH) {
+      this.draw();
+      return;
+    }
+    this.canvas.width = nextW;
+    this.canvas.height = nextH;
     this.ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     this.draw();
+  }
+
+  private seriesSampleCount(snapshot: MeasurementSnapshot, channelId: string): number {
+    if (isBChannel(channelId)) {
+      return snapshot.secondaryCount ?? snapshot.count;
+    }
+    if (snapshot.comparisonActive) {
+      return snapshot.primaryCount ?? snapshot.count;
+    }
+    return snapshot.count;
   }
 
   private resolveSeries(snapshot: MeasurementSnapshot): MeasurementChannel[] {
@@ -135,7 +157,7 @@ export class GraphSystem {
       const series = snapshot.channels.filter((c) => isEnergyChannel(c.id));
       if (snapshot.comparisonActive) {
         const bEnergy = snapshot.channels.filter(
-          (c) => c.id.startsWith('energy_') && c.id.endsWith(COMPARISON_B_SUFFIX),
+          (c) => c.id.startsWith('energy_') && isBChannel(c.id),
         );
         return [...series, ...bEnergy];
       }
@@ -157,6 +179,7 @@ export class GraphSystem {
     const snapshot = this.latestSnapshot;
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
+    if (width < 2 || height < 2) return;
     this.ctx.clearRect(0, 0, width, height);
 
     const textMuted = readToken('--color-text-muted', '#5c6b7a');
@@ -173,15 +196,18 @@ export class GraphSystem {
     const series = this.resolveSeries(snapshot);
     if (series.length === 0) return;
 
-    const count = snapshot.count;
-    const padding = 44;
-    const plotW = width - padding * 2;
-    const plotH = height - padding * 2;
+    const padL = 48;
+    const padR = 16;
+    const padT = series.length > 3 ? 44 : 32;
+    const padB = 32;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+    if (plotW < 8 || plotH < 8) return;
 
     let minY = Infinity;
     let maxY = -Infinity;
     for (const channel of series) {
-      const n = Math.min(count, channel.values.length);
+      const n = Math.min(this.seriesSampleCount(snapshot, channel.id), channel.values.length);
       for (let i = 0; i < n; i++) {
         const v = channel.values[i];
         if (v < minY) minY = v;
@@ -193,37 +219,42 @@ export class GraphSystem {
       maxY = (Number.isFinite(maxY) ? maxY : 0) + 1;
     }
 
-    const maxT = snapshot.time[count - 1] || 1;
+    const yPad = (maxY - minY) * 0.06;
+    minY -= yPad;
+    maxY += yPad;
+
+    const maxT = snapshot.time[snapshot.count - 1] || 1;
     const yRange = maxY - minY;
 
-    const toX = (t: number) => padding + (t / maxT) * plotW;
-    const toY = (v: number) => height - padding - ((v - minY) / yRange) * plotH;
+    const toX = (t: number) => padL + (t / maxT) * plotW;
+    const toY = (v: number) => padT + plotH - ((v - minY) / yRange) * plotH;
 
     this.ctx.strokeStyle = border;
     this.ctx.lineWidth = 0.5;
     const gridLines = 4;
     for (let i = 0; i <= gridLines; i++) {
-      const y = padding + (plotH / gridLines) * i;
+      const y = padT + (plotH / gridLines) * i;
       this.ctx.beginPath();
-      this.ctx.moveTo(padding, y);
-      this.ctx.lineTo(width - padding, y);
+      this.ctx.moveTo(padL, y);
+      this.ctx.lineTo(width - padR, y);
       this.ctx.stroke();
     }
 
     this.ctx.strokeStyle = border;
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.moveTo(padding, padding);
-    this.ctx.lineTo(padding, height - padding);
-    this.ctx.lineTo(width - padding, height - padding);
+    this.ctx.moveTo(padL, padT);
+    this.ctx.lineTo(padL, height - padB);
+    this.ctx.lineTo(width - padR, height - padB);
     this.ctx.stroke();
 
     for (let s = 0; s < series.length; s++) {
       const channel = series[s];
       const color = SERIES_COLORS[s % SERIES_COLORS.length];
-      const n = Math.min(count, channel.values.length);
+      const n = Math.min(this.seriesSampleCount(snapshot, channel.id), channel.values.length, snapshot.count);
       this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = isBChannel(channel.id) ? 1.75 : 2;
+      this.ctx.setLineDash(isBChannel(channel.id) ? [6, 4] : []);
       this.ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const x = toX(snapshot.time[i]);
@@ -233,27 +264,34 @@ export class GraphSystem {
       }
       this.ctx.stroke();
     }
+    this.ctx.setLineDash([]);
 
-    // Legend
-    let legendX = padding;
-    const legendY = 16;
+    // Wrapped legend
     this.ctx.font = '11px Inter, sans-serif';
+    let legendX = padL;
+    let legendY = 14;
+    const legendRowH = 14;
     for (let s = 0; s < series.length; s++) {
       const color = SERIES_COLORS[s % SERIES_COLORS.length];
       const label = series[s].label;
+      const labelW = this.ctx.measureText(label).width + 28;
+      if (legendX + labelW > width - padR && legendX > padL) {
+        legendX = padL;
+        legendY += legendRowH;
+      }
       this.ctx.fillStyle = color;
       this.ctx.fillRect(legendX, legendY - 8, 10, 10);
       this.ctx.fillStyle = textPrimary;
       this.ctx.fillText(label, legendX + 14, legendY);
-      legendX += this.ctx.measureText(label).width + 28;
+      legendX += labelW;
     }
 
     this.ctx.fillStyle = textMuted;
     this.ctx.font = '11px Inter, sans-serif';
-    this.ctx.fillText('0', padding - 4, height - padding + 14);
-    this.ctx.fillText(maxT.toFixed(1) + 's', width - padding - 20, height - padding + 14);
-    this.ctx.fillText(minY.toFixed(2), 4, height - padding);
-    this.ctx.fillText(maxY.toFixed(2), 4, padding + 4);
+    this.ctx.fillText('0', padL - 2, height - padB + 14);
+    this.ctx.fillText(`${maxT.toFixed(1)}s`, width - padR - 28, height - padB + 14);
+    this.ctx.fillText(minY.toFixed(2), 4, height - padB);
+    this.ctx.fillText(maxY.toFixed(2), 4, padT + 4);
 
     this.ctx.fillStyle = textPrimary;
     this.ctx.fillText('Time (s)', width / 2 - 20, height - 6);
@@ -269,7 +307,7 @@ export class GraphSystem {
     for (let i = 0; i < snapshot.count; i++) {
       const cols = [snapshot.time[i].toFixed(6)];
       for (const channel of snapshot.channels) {
-        const n = Math.min(snapshot.count, channel.values.length);
+        const n = this.seriesSampleCount(snapshot, channel.id);
         cols.push(i < n ? channel.values[i].toFixed(6) : '');
       }
       rows.push(cols.join(','));

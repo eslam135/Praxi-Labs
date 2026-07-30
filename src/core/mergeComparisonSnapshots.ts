@@ -19,11 +19,18 @@ export function mergeComparisonSnapshots(
     values: channel.values,
   }));
 
+  const primaryCount = primary.count;
+  const secondaryCount = secondary.count;
+  const count = Math.max(primaryCount, secondaryCount);
+  const time = secondaryCount > primaryCount ? secondary.time : primary.time;
+
   return {
-    time: primary.time,
+    time,
     channels: [...primary.channels, ...bChannels],
     scalars: primary.scalars,
-    count: primary.count,
+    count,
     comparisonActive: true,
+    primaryCount,
+    secondaryCount,
   };
 }
