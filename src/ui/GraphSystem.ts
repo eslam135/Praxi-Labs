@@ -1,0 +1,286 @@
+/**
+ * GraphSystem — generic time-series plotter with CSV export.
+ *
+ * Role: Plots any measurement channel vs time; exports recorded data as CSV.
+ * Also supports Energy overlay (all energy_* channels) and A/B comparison overlays.
+ * Connections: Consumes MeasurementSnapshot via UIUpdateScheduler at ~15 Hz.
+ * Extension: Channel list auto-populates from experiment measurement channels.
+ */
+import { COMPARISON_B_SUFFIX, type MeasurementChannel, type MeasurementSnapshot } from '../core/types';
+import { createPanel } from './components/Panel';
+import { createSelect, type SelectElement } from './components/Select';
+import { createButton } from './components/Button';
+
+const ENERGY_MODE = '__energy__';
+
+const SERIES_COLORS = ['#38bdf8', '#fbbf24', '#4ade80', '#f472b6', '#a78bfa', '#fb923c'];
+
+function readToken(name: string, fallback: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+function isEnergyChannel(id: string): boolean {
+  return id.startsWith('energy_') && !id.endsWith(COMPARISON_B_SUFFIX);
+}
+
+export class GraphSystem {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private channelSelect: SelectElement;
+  private latestSnapshot: MeasurementSnapshot | null = null;
+  private cachedChannelIds = '';
+  private drawPending = false;
+
+  constructor(container: HTMLElement) {
+    const panel = createPanel({ title: 'Time Series', className: 'graph-panel' });
+
+    const controls = document.createElement('div');
+    controls.className = 'graph-controls';
+
+    this.channelSelect = createSelect({
+      id: 'graph-channel',
+      label: 'Channel',
+      options: [],
+      onChange: () => this.scheduleDraw(),
+    });
+    controls.appendChild(this.channelSelect.root);
+
+    const exportBtn = createButton({
+      label: 'Export CSV',
+      variant: 'secondary',
+      onClick: () => this.exportCsv(),
+    });
+    controls.appendChild(exportBtn);
+
+    panel.body.appendChild(controls);
+
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'graph-canvas';
+    this.containerAppendCanvas(panel.body);
+
+    const ctx = this.canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get 2D context');
+    this.ctx = ctx;
+
+    container.appendChild(panel.root);
+    window.addEventListener('resize', () => this.resizeCanvas());
+    this.resizeCanvas();
+  }
+
+  private containerAppendCanvas(parent: HTMLElement): void {
+    parent.appendChild(this.canvas);
+  }
+
+  updateSnapshot(snapshot: MeasurementSnapshot): void {
+    this.latestSnapshot = snapshot;
+
+    const channelIds = snapshot.channels.map((c) => c.id).join(',');
+    if (channelIds !== this.cachedChannelIds) {
+      this.cachedChannelIds = channelIds;
+      this.rebuildChannelOptions(snapshot);
+    }
+
+    this.scheduleDraw();
+  }
+
+  private rebuildChannelOptions(snapshot: MeasurementSnapshot): void {
+    const hasEnergy = snapshot.channels.some((c) => isEnergyChannel(c.id));
+    const options = [];
+
+    if (hasEnergy) {
+      options.push({ value: ENERGY_MODE, label: 'Energy (KE / PE / Total)' });
+    }
+
+    for (const channel of snapshot.channels) {
+      if (channel.id.endsWith(COMPARISON_B_SUFFIX)) continue;
+      options.push({
+        value: channel.id,
+        label: `${channel.label} (${channel.unit})`,
+      });
+    }
+
+    const preferEnergy = hasEnergy && this.channelSelect.select.value === '';
+    this.channelSelect.setOptions(options, preferEnergy ? ENERGY_MODE : undefined);
+
+    // Prefer energy plot when channels first appear and previous selection is gone.
+    if (hasEnergy) {
+      const current = this.channelSelect.select.value;
+      const valid = options.some((o) => o.value === current);
+      if (!valid) this.channelSelect.setValue(ENERGY_MODE);
+    }
+  }
+
+  private scheduleDraw(): void {
+    if (this.drawPending) return;
+    this.drawPending = true;
+    requestAnimationFrame(() => {
+      this.drawPending = false;
+      this.draw();
+    });
+  }
+
+  private resizeCanvas(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
+    this.canvas.width = rect.width * devicePixelRatio;
+    this.canvas.height = rect.height * devicePixelRatio;
+    this.ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    this.draw();
+  }
+
+  private resolveSeries(snapshot: MeasurementSnapshot): MeasurementChannel[] {
+    const mode = this.channelSelect.select.value;
+
+    if (mode === ENERGY_MODE) {
+      const series = snapshot.channels.filter((c) => isEnergyChannel(c.id));
+      if (snapshot.comparisonActive) {
+        const bEnergy = snapshot.channels.filter(
+          (c) => c.id.startsWith('energy_') && c.id.endsWith(COMPARISON_B_SUFFIX),
+        );
+        return [...series, ...bEnergy];
+      }
+      return series;
+    }
+
+    const primary = snapshot.channels.find((c) => c.id === mode);
+    if (!primary) return [];
+
+    const series = [primary];
+    if (snapshot.comparisonActive) {
+      const b = snapshot.channels.find((c) => c.id === `${mode}${COMPARISON_B_SUFFIX}`);
+      if (b) series.push(b);
+    }
+    return series;
+  }
+
+  private draw(): void {
+    const snapshot = this.latestSnapshot;
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+    this.ctx.clearRect(0, 0, width, height);
+
+    const textMuted = readToken('--color-text-muted', '#5c6b7a');
+    const border = readToken('--color-border', '#2e3f52');
+    const textPrimary = readToken('--color-text-primary', '#f0f4f8');
+
+    if (!snapshot || snapshot.count < 2) {
+      this.ctx.fillStyle = textMuted;
+      this.ctx.font = '14px Inter, sans-serif';
+      this.ctx.fillText('Recording data...', 16, 32);
+      return;
+    }
+
+    const series = this.resolveSeries(snapshot);
+    if (series.length === 0) return;
+
+    const count = snapshot.count;
+    const padding = 44;
+    const plotW = width - padding * 2;
+    const plotH = height - padding * 2;
+
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const channel of series) {
+      const n = Math.min(count, channel.values.length);
+      for (let i = 0; i < n; i++) {
+        const v = channel.values[i];
+        if (v < minY) minY = v;
+        if (v > maxY) maxY = v;
+      }
+    }
+    if (!Number.isFinite(minY) || !Number.isFinite(maxY) || minY === maxY) {
+      minY = (Number.isFinite(minY) ? minY : 0) - 1;
+      maxY = (Number.isFinite(maxY) ? maxY : 0) + 1;
+    }
+
+    const maxT = snapshot.time[count - 1] || 1;
+    const yRange = maxY - minY;
+
+    const toX = (t: number) => padding + (t / maxT) * plotW;
+    const toY = (v: number) => height - padding - ((v - minY) / yRange) * plotH;
+
+    this.ctx.strokeStyle = border;
+    this.ctx.lineWidth = 0.5;
+    const gridLines = 4;
+    for (let i = 0; i <= gridLines; i++) {
+      const y = padding + (plotH / gridLines) * i;
+      this.ctx.beginPath();
+      this.ctx.moveTo(padding, y);
+      this.ctx.lineTo(width - padding, y);
+      this.ctx.stroke();
+    }
+
+    this.ctx.strokeStyle = border;
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.moveTo(padding, padding);
+    this.ctx.lineTo(padding, height - padding);
+    this.ctx.lineTo(width - padding, height - padding);
+    this.ctx.stroke();
+
+    for (let s = 0; s < series.length; s++) {
+      const channel = series[s];
+      const color = SERIES_COLORS[s % SERIES_COLORS.length];
+      const n = Math.min(count, channel.values.length);
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = toX(snapshot.time[i]);
+        const y = toY(channel.values[i]);
+        if (i === 0) this.ctx.moveTo(x, y);
+        else this.ctx.lineTo(x, y);
+      }
+      this.ctx.stroke();
+    }
+
+    // Legend
+    let legendX = padding;
+    const legendY = 16;
+    this.ctx.font = '11px Inter, sans-serif';
+    for (let s = 0; s < series.length; s++) {
+      const color = SERIES_COLORS[s % SERIES_COLORS.length];
+      const label = series[s].label;
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(legendX, legendY - 8, 10, 10);
+      this.ctx.fillStyle = textPrimary;
+      this.ctx.fillText(label, legendX + 14, legendY);
+      legendX += this.ctx.measureText(label).width + 28;
+    }
+
+    this.ctx.fillStyle = textMuted;
+    this.ctx.font = '11px Inter, sans-serif';
+    this.ctx.fillText('0', padding - 4, height - padding + 14);
+    this.ctx.fillText(maxT.toFixed(1) + 's', width - padding - 20, height - padding + 14);
+    this.ctx.fillText(minY.toFixed(2), 4, height - padding);
+    this.ctx.fillText(maxY.toFixed(2), 4, padding + 4);
+
+    this.ctx.fillStyle = textPrimary;
+    this.ctx.fillText('Time (s)', width / 2 - 20, height - 6);
+  }
+
+  private exportCsv(): void {
+    const snapshot = this.latestSnapshot;
+    if (!snapshot || snapshot.count === 0) return;
+
+    const headers = ['time', ...snapshot.channels.map((c) => c.id)];
+    const rows: string[] = [headers.join(',')];
+
+    for (let i = 0; i < snapshot.count; i++) {
+      const cols = [snapshot.time[i].toFixed(6)];
+      for (const channel of snapshot.channels) {
+        const n = Math.min(snapshot.count, channel.values.length);
+        cols.push(i < n ? channel.values[i].toFixed(6) : '');
+      }
+      rows.push(cols.join(','));
+    }
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'physics_data.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+}
