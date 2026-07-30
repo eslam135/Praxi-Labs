@@ -1,9 +1,9 @@
 /**
  * TopBar — application header with brand, experiment switcher, and global actions.
  *
- * Role: Top-level navigation and global controls (reset, comparison mode).
- * Connections: Hosts ExperimentSwitcher; reset/comparison wired in main.ts.
- * Extension: Add play/pause here if needed.
+ * Role: Top-level navigation and global controls (play/pause, reset, comparison mode).
+ * Connections: Hosts ExperimentSwitcher; controls wired in main.ts.
+ * Extension: Keep global transport controls here; experiment params stay schema-driven.
  */
 import type { ComparisonEditTarget } from '../core/types';
 import { createButton } from './components/Button';
@@ -15,6 +15,7 @@ export interface TopBarOptions {
   switcherContainer: HTMLElement;
   actionsContainer: HTMLElement;
   onReset: () => void;
+  onPlayPause: () => void;
   onComparisonChange: (enabled: boolean) => void;
   onEditTargetChange: (target: ComparisonEditTarget) => void;
 }
@@ -24,6 +25,7 @@ export class TopBar {
   private compareToggle: ToggleElement;
   private editSelect: SelectElement;
   private editWrap: HTMLElement;
+  private playPauseBtn: HTMLButtonElement;
 
   constructor(options: TopBarOptions) {
     const title = document.createElement('h1');
@@ -35,6 +37,13 @@ export class TopBar {
 
     options.brandContainer.appendChild(title);
     options.brandContainer.appendChild(this.subtitleEl);
+
+    this.playPauseBtn = createButton({
+      label: 'Pause',
+      variant: 'secondary',
+      onClick: options.onPlayPause,
+    });
+    options.actionsContainer.appendChild(this.playPauseBtn);
 
     this.compareToggle = createToggle({
       id: 'comparison-toggle',
@@ -71,6 +80,10 @@ export class TopBar {
 
   setExperimentName(name: string): void {
     this.subtitleEl.textContent = name;
+  }
+
+  setPaused(paused: boolean): void {
+    this.playPauseBtn.textContent = paused ? 'Play' : 'Pause';
   }
 
   setComparisonUi(enabled: boolean, editTarget: ComparisonEditTarget): void {

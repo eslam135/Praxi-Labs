@@ -42,7 +42,16 @@ const parameterPanel = new ParameterPanel(
   document.getElementById('parameter-panel')!,
   parameterStore,
 );
-const graphSystem = new GraphSystem(document.getElementById('graph-system')!);
+
+let loop!: SimulationLoop;
+let syncTransportUi: (paused: boolean) => void = () => {};
+
+const graphSystem = new GraphSystem(document.getElementById('graph-system')!, {
+  onUserScrub: () => {
+    loop.pause();
+    syncTransportUi(true);
+  },
+});
 const scalarDisplay = new ScalarDisplay(document.getElementById('scalar-display')!);
 const uiScheduler = new UIUpdateScheduler(scalarDisplay, graphSystem);
 
@@ -62,8 +71,21 @@ const topBar = new TopBar({
   switcherContainer: document.getElementById('experiment-switcher')!,
   actionsContainer: document.getElementById('top-bar-actions')!,
   onReset: () => {
+    loop.resume();
+    syncTransportUi(false);
+    graphSystem.setFollowLive(true);
     host.reset();
     uiScheduler.forceUpdate(host.getMeasurements());
+  },
+  onPlayPause: () => {
+    if (loop.isPaused()) {
+      loop.resume();
+      syncTransportUi(false);
+      graphSystem.setFollowLive(true);
+    } else {
+      loop.pause();
+      syncTransportUi(true);
+    }
   },
   onComparisonChange: (enabled) => {
     host.setComparisonEnabled(enabled);
@@ -76,6 +98,9 @@ const topBar = new TopBar({
   },
 });
 
+syncTransportUi = (paused: boolean) => {
+  topBar.setPaused(paused);
+};
 switcher.setOnSwitch((name) => topBar.setExperimentName(name));
 
 function refreshUI(): void {
@@ -84,6 +109,7 @@ function refreshUI(): void {
   parameterPanel.bindSchema(experiment.getParameterSchema());
   parameterPanel.syncFromStore(parameterStore.getValues());
   topBar.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
+  graphSystem.setFollowLive(true);
   uiScheduler.forceUpdate(host.getMeasurements());
 }
 
@@ -97,7 +123,7 @@ if (experiments.length === 0) {
 host.switchExperiment(experiments[0].id);
 switcher.setActive(experiments[0].id);
 
-const loop = new SimulationLoop({
+loop = new SimulationLoop({
   onFixedUpdate: (dt) => host.fixedUpdate(dt),
   onRender: (alpha) => {
     host.render(alpha);

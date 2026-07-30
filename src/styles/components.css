@@ -453,6 +453,29 @@
   flex-shrink: 0;
 }
 
+.graph-scrub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.graph-scrub__label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.graph-scrub__input {
+  width: 100%;
+  accent-color: var(--color-accent, #38bdf8);
+}
+
+.graph-scrub__readout {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .graph-canvas {
   width: 100%;
   flex: 1;

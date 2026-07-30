@@ -110,4 +110,3 @@ Cursor rules in `.cursor/rules/` enforce architecture constraints (experiment in
 
 - Dual-viewport comparison if reviewers want spatial A/B side-by-side
 - Trail pooling for projectile to remove occasional Vector3 pushes
-- Play/pause and scrubbing on the graph timeline

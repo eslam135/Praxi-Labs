@@ -1,10 +1,11 @@
 /**
- * GraphSystem — generic time-series plotter with CSV export.
+ * GraphSystem — generic time-series plotter with CSV export and time scrubbing.
  *
  * Role: Plots any measurement channel vs time; exports recorded data as CSV.
  * Also supports Energy overlay (all energy_* channels) and A/B comparison overlays.
  * Connections: Consumes MeasurementSnapshot via UIUpdateScheduler at ~15 Hz.
  * Extension: Channel list auto-populates from experiment measurement channels.
+ *            Scrubbing is read-only over recorded buffers (no 3D rewind).
  */
 import { COMPARISON_B_SUFFIX, type MeasurementChannel, type MeasurementSnapshot } from '../core/types';
 import { createPanel } from './components/Panel';
@@ -27,16 +28,27 @@ function isBChannel(id: string): boolean {
   return id.endsWith(COMPARISON_B_SUFFIX);
 }
 
+export interface GraphSystemOptions {
+  /** Called when the user drags the scrub slider (implies pause / detach from live end). */
+  onUserScrub?: () => void;
+}
+
 export class GraphSystem {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private channelSelect: SelectElement;
+  private scrubInput: HTMLInputElement;
+  private scrubReadout: HTMLElement;
   private latestSnapshot: MeasurementSnapshot | null = null;
   private cachedChannelIds = '';
   private drawPending = false;
   private resizeObserver: ResizeObserver;
+  private followLive = true;
+  private scrubIndex = 0;
+  private onUserScrub: (() => void) | undefined;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, options: GraphSystemOptions = {}) {
+    this.onUserScrub = options.onUserScrub;
     const panel = createPanel({ title: 'Time Series', className: 'graph-panel' });
 
     const controls = document.createElement('div');
@@ -57,6 +69,39 @@ export class GraphSystem {
     });
     controls.appendChild(exportBtn);
 
+    const scrubRow = document.createElement('div');
+    scrubRow.className = 'graph-scrub';
+
+    const scrubLabel = document.createElement('label');
+    scrubLabel.className = 'graph-scrub__label';
+    scrubLabel.htmlFor = 'graph-scrub';
+    scrubLabel.textContent = 'Scrub';
+
+    this.scrubInput = document.createElement('input');
+    this.scrubInput.type = 'range';
+    this.scrubInput.id = 'graph-scrub';
+    this.scrubInput.className = 'graph-scrub__input';
+    this.scrubInput.min = '0';
+    this.scrubInput.max = '0';
+    this.scrubInput.value = '0';
+    this.scrubInput.step = '1';
+    this.scrubInput.addEventListener('input', () => {
+      this.followLive = false;
+      this.scrubIndex = Number(this.scrubInput.value) || 0;
+      this.onUserScrub?.();
+      this.updateScrubReadout();
+      this.scheduleDraw();
+    });
+
+    this.scrubReadout = document.createElement('div');
+    this.scrubReadout.className = 'graph-scrub__readout';
+    this.scrubReadout.textContent = 't = —';
+
+    scrubRow.appendChild(scrubLabel);
+    scrubRow.appendChild(this.scrubInput);
+    scrubRow.appendChild(this.scrubReadout);
+    controls.appendChild(scrubRow);
+
     panel.body.appendChild(controls);
 
     this.canvas = document.createElement('canvas');
@@ -73,6 +118,17 @@ export class GraphSystem {
     this.resizeCanvas();
   }
 
+  /** Resume auto-following the live end of the recording (e.g. on Play). */
+  setFollowLive(follow: boolean): void {
+    this.followLive = follow;
+    if (follow && this.latestSnapshot && this.latestSnapshot.count > 0) {
+      this.scrubIndex = this.latestSnapshot.count - 1;
+      this.scrubInput.value = String(this.scrubIndex);
+      this.updateScrubReadout();
+      this.scheduleDraw();
+    }
+  }
+
   /** Public hook for panel resize / layout changes. */
   notifyLayoutChange(): void {
     this.resizeCanvas();
@@ -87,7 +143,38 @@ export class GraphSystem {
       this.rebuildChannelOptions(snapshot);
     }
 
+    const maxIdx = Math.max(0, snapshot.count - 1);
+    this.scrubInput.max = String(maxIdx);
+    if (this.followLive) {
+      this.scrubIndex = maxIdx;
+      this.scrubInput.value = String(maxIdx);
+    } else if (this.scrubIndex > maxIdx) {
+      this.scrubIndex = maxIdx;
+      this.scrubInput.value = String(maxIdx);
+    }
+    this.updateScrubReadout();
+
     this.scheduleDraw();
+  }
+
+  private updateScrubReadout(): void {
+    const snapshot = this.latestSnapshot;
+    if (!snapshot || snapshot.count < 1) {
+      this.scrubReadout.textContent = 't = —';
+      return;
+    }
+    const i = Math.min(this.scrubIndex, snapshot.count - 1);
+    const t = snapshot.time[i];
+    const series = this.resolveSeries(snapshot);
+    const parts = [`t = ${t.toFixed(3)} s`];
+    for (let s = 0; s < Math.min(series.length, 3); s++) {
+      const ch = series[s];
+      const n = this.seriesSampleCount(snapshot, ch.id);
+      if (i < n) {
+        parts.push(`${ch.label}=${ch.values[i].toFixed(3)}`);
+      }
+    }
+    this.scrubReadout.textContent = parts.join(' · ');
   }
 
   private rebuildChannelOptions(snapshot: MeasurementSnapshot): void {
@@ -185,6 +272,7 @@ export class GraphSystem {
     const textMuted = readToken('--color-text-muted', '#5c6b7a');
     const border = readToken('--color-border', '#2e3f52');
     const textPrimary = readToken('--color-text-primary', '#f0f4f8');
+    const accent = readToken('--color-accent', '#38bdf8');
 
     if (!snapshot || snapshot.count < 2) {
       this.ctx.fillStyle = textMuted;
@@ -264,6 +352,19 @@ export class GraphSystem {
       }
       this.ctx.stroke();
     }
+    this.ctx.setLineDash([]);
+
+    // Scrub cursor
+    const scrubI = Math.min(this.scrubIndex, snapshot.count - 1);
+    const scrubT = snapshot.time[scrubI];
+    const scrubX = toX(scrubT);
+    this.ctx.strokeStyle = accent;
+    this.ctx.lineWidth = 1.25;
+    this.ctx.setLineDash([4, 3]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(scrubX, padT);
+    this.ctx.lineTo(scrubX, height - padB);
+    this.ctx.stroke();
     this.ctx.setLineDash([]);
 
     // Wrapped legend
