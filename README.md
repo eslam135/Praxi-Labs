@@ -66,7 +66,7 @@ main.ts → ExperimentSceneAdapter / offscreen factory → Host (DIP)
 | Spring-mass | x'' = -(k/m)x - (c/m)x' | RK4 | Displacement / Energy vs time | Measured vs theoretical frequency |
 | Atwood | a = (m1−m2)g/(m1+m2) | RK4 | Displacement / Energy vs time | Measured vs theoretical acceleration |
 
-Energy channels (`energy_kinetic`, `energy_potential`, `energy_total`) are recorded for all experiments. The graph defaults to an **Energy (KE / PE / Total)** multi-series view when those channels exist.
+Energy channels (`energy_kinetic`, `energy_potential`, `energy_total`) are recorded for all experiments. The graph defaults to an **Energy (KE / PE / Total)** multi-series view when those channels exist. Experiments also expose an **Energy Drift (%)** scalar — `|E − E₀| / |E₀| × 100` from reset — omitted when `|E₀| ≈ 0`.
 
 ## Dependencies
 

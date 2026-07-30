@@ -24,6 +24,7 @@ import {
   type AtwoodParams,
 } from '../physics/equations/atwood';
 import { percentDifference } from '../physics/analysis/period';
+import { energyDriftPercent } from '../physics/analysis/energy';
 import { createBox, createLine, createSphere, updateLinePoints } from '../rendering/objects/primitives';
 
 const DEFAULT_PARAMS: AtwoodParams = {
@@ -45,6 +46,7 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
   private prevState = createAtwoodState(this.params);
   private integrator = new RK4();
   private recorder: MeasurementRecorder | null = null;
+  private initialEnergyTotal = 0;
 
   private pulley: THREE.Mesh | null = null;
   private mass1: THREE.Mesh | null = null;
@@ -119,6 +121,7 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
     this.state = createAtwoodState(this.params);
     this.prevState[0] = this.state[0];
     this.prevState[1] = this.state[1];
+    this.initialEnergyTotal = computeAtwoodEnergy(this.state, this.params).total;
     this.recorder?.clear();
     this.syncVisuals(this.state[0]);
   }
@@ -248,7 +251,7 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
       }
     }
 
-    return [
+    const scalars: ScalarMetric[] = [
       {
         id: 'displacement',
         label: 'm1 Displacement',
@@ -270,5 +273,20 @@ export class AtwoodExperiment implements Experiment<ExperimentRenderContext> {
         unit: 'm/s',
       },
     ];
+
+    const drift = energyDriftPercent(
+      this.initialEnergyTotal,
+      computeAtwoodEnergy(this.state, this.params).total,
+    );
+    if (drift !== null) {
+      scalars.push({
+        id: 'energy_drift',
+        label: 'Energy Drift',
+        value: drift,
+        unit: '%',
+      });
+    }
+
+    return scalars;
   }
 }

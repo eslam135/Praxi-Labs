@@ -28,6 +28,7 @@ import {
   type ProjectileParams,
 } from '../physics/equations/projectile';
 import { percentDifference } from '../physics/analysis/period';
+import { energyDriftPercent } from '../physics/analysis/energy';
 import {
   createBox,
   createLine,
@@ -59,6 +60,7 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
   private recorder: MeasurementRecorder | null = null;
   private landed = false;
   private landingX = 0;
+  private initialEnergyTotal = 0;
 
   private root: THREE.Group | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
@@ -154,6 +156,7 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
     this.prevState[3] = this.state[3];
     this.landed = false;
     this.landingX = 0;
+    this.initialEnergyTotal = computeProjectileEnergy(this.state, this.params).total;
     this.recorder?.clear();
     this.trailPoints = [new THREE.Vector3(0, 0.2, 0)];
 
@@ -334,6 +337,19 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
         unit: 'm',
         theoretical,
         percentError: percentDifference(this.landingX, theoretical),
+      });
+    }
+
+    const drift = energyDriftPercent(
+      this.initialEnergyTotal,
+      computeProjectileEnergy(this.state, this.params).total,
+    );
+    if (drift !== null) {
+      scalars.push({
+        id: 'energy_drift',
+        label: 'Energy Drift',
+        value: drift,
+        unit: '%',
       });
     }
 

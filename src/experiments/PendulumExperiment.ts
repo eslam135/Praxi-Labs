@@ -26,6 +26,7 @@ import {
   type PendulumParams,
 } from '../physics/equations/pendulum';
 import { measurePeriod, percentDifference } from '../physics/analysis/period';
+import { energyDriftPercent } from '../physics/analysis/energy';
 import { createRod, createSphere } from '../rendering/objects/primitives';
 
 const DEFAULT_PARAMS: PendulumParams = {
@@ -43,6 +44,7 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
   private rk4 = new RK4();
   private euler = new ExplicitEuler();
   private recorder: MeasurementRecorder | null = null;
+  private initialEnergyTotal = 0;
 
   private pivot: THREE.Object3D | null = null;
   private rod: THREE.Mesh | null = null;
@@ -99,6 +101,7 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
     this.state = createPendulumState(this.params);
     this.prevState[0] = this.state[0];
     this.prevState[1] = this.state[1];
+    this.initialEnergyTotal = computePendulumEnergy(this.state, this.params).total;
     this.recorder?.clear();
     this.syncVisuals(this.state[0]);
   }
@@ -184,6 +187,19 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
         unit: 's',
         theoretical,
         percentError: percentDifference(measuredPeriod, theoretical),
+      });
+    }
+
+    const drift = energyDriftPercent(
+      this.initialEnergyTotal,
+      computePendulumEnergy(this.state, this.params).total,
+    );
+    if (drift !== null) {
+      scalars.push({
+        id: 'energy_drift',
+        label: 'Energy Drift',
+        value: drift,
+        unit: '%',
       });
     }
 

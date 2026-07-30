@@ -27,6 +27,7 @@ import {
   type SpringParams,
 } from '../physics/equations/spring';
 import { measureFrequency, percentDifference } from '../physics/analysis/period';
+import { energyDriftPercent } from '../physics/analysis/energy';
 import {
   createBox,
   createSpring,
@@ -53,6 +54,7 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
   private rk4 = new RK4();
   private euler = new ExplicitEuler();
   private recorder: MeasurementRecorder | null = null;
+  private initialEnergyTotal = 0;
 
   private anchor: THREE.Object3D | null = null;
   private springLine: THREE.Line | null = null;
@@ -113,6 +115,7 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
     this.state = createSpringState(this.params);
     this.prevState[0] = this.state[0];
     this.prevState[1] = this.state[1];
+    this.initialEnergyTotal = computeSpringEnergy(this.state, this.params).total;
     this.recorder?.clear();
     this.syncVisuals(this.state[0]);
   }
@@ -228,6 +231,19 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
         unit: 'Hz',
         theoretical,
         percentError: percentDifference(measuredFreq, theoretical),
+      });
+    }
+
+    const drift = energyDriftPercent(
+      this.initialEnergyTotal,
+      computeSpringEnergy(this.state, this.params).total,
+    );
+    if (drift !== null) {
+      scalars.push({
+        id: 'energy_drift',
+        label: 'Energy Drift',
+        value: drift,
+        unit: '%',
       });
     }
 
