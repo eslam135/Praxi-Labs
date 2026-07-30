@@ -16,6 +16,8 @@ import type {
 import type { MeasurementRecorder } from '../core/MeasurementRecorder';
 import type { ExperimentRenderContext } from '../rendering/ExperimentRenderContext';
 import { RK4 } from '../physics/integrators/RK4';
+import { ExplicitEuler } from '../physics/integrators/ExplicitEuler';
+import type { Integrator } from '../physics/integrators/Integrator';
 import {
   computePendulumEnergy,
   createPendulumState,
@@ -35,15 +37,21 @@ const DEFAULT_PARAMS: PendulumParams = {
 
 export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
   private params: PendulumParams = { ...DEFAULT_PARAMS };
+  private useExplicitEuler = false;
   private state = createPendulumState(this.params);
   private prevState = createPendulumState(this.params);
-  private integrator = new RK4();
+  private rk4 = new RK4();
+  private euler = new ExplicitEuler();
   private recorder: MeasurementRecorder | null = null;
 
   private pivot: THREE.Object3D | null = null;
   private rod: THREE.Mesh | null = null;
   private bob: THREE.Mesh | null = null;
   private baseRodLength = 2;
+
+  private get integrator(): Integrator {
+    return this.useExplicitEuler ? this.euler : this.rk4;
+  }
 
   setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
@@ -119,6 +127,14 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
       { key: 'gravity', label: 'Gravity', type: 'slider', default: 9.81, min: 1, max: 20, step: 0.01, unit: 'm/s²' },
       { key: 'initialAngle', label: 'Initial Angle', type: 'slider', default: Math.PI / 4, min: -Math.PI, max: Math.PI, step: 0.01, unit: 'rad', description: 'Starting angle from vertical. Uses full nonlinear sin(θ), not small-angle approximation.' },
       { key: 'damping', label: 'Damping', type: 'slider', default: 0.05, min: 0, max: 2, step: 0.01, unit: '1/s', description: 'Velocity damping coefficient. Higher values slow the swing faster.' },
+      {
+        key: 'useExplicitEuler',
+        label: 'Use explicit Euler',
+        type: 'toggle',
+        default: false,
+        description:
+          'Pedagogical: unstable for oscillators (energy grows). Compare A/B — Set A off, Set B on — to watch energy_total diverge.',
+      },
     ];
   }
 
@@ -129,6 +145,7 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
       damping: Number(params.damping ?? this.params.damping),
       initialAngle: Number(params.initialAngle ?? this.params.initialAngle),
     };
+    this.useExplicitEuler = Boolean(params.useExplicitEuler ?? this.useExplicitEuler);
     this.reset();
   }
 

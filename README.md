@@ -42,11 +42,11 @@ src/
 
 5. **Physics/Rendering Separation** — All equations live in `physics/` with zero Three.js imports. Unit-testable in Node via Vitest.
 
-6. **Integrator Choice** — RK4 for oscillators (pendulum, spring) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy and is unstable for harmonic motion.
+6. **Integrator Choice** — RK4 for oscillators (pendulum, spring) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy and is unstable for harmonic motion. Pendulum/Spring expose a **Use explicit Euler** toggle so Compare A/B can overlay RK4 (Set A) vs Euler (Set B) on `energy_total`.
 
 7. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts`.
 
-8. **Light A/B Comparison** — Toggle Compare A/B to run a headless second parameter set. A/B parameter routing lives in `ComparisonController`; only set A is shown in 3D; the graph overlays set B channels (`*__B`).
+8. **Light A/B Comparison** — Toggle Compare A/B to run a headless second parameter set. A/B parameter routing lives in `ComparisonController`; only set A is shown in 3D; the graph overlays set B channels (`*__B`). For integrator pedagogy: enable Compare, leave Set A with **Use explicit Euler** off, switch Edit to Set B and turn the toggle on — watch Energy diverge.
 
 ### Data Flow
 

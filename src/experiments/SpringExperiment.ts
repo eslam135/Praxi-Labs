@@ -17,6 +17,8 @@ import type { MeasurementRecorder } from '../core/MeasurementRecorder';
 import type { RenderKit } from '../rendering/RenderKit';
 import type { ExperimentRenderContext } from '../rendering/ExperimentRenderContext';
 import { RK4 } from '../physics/integrators/RK4';
+import { ExplicitEuler } from '../physics/integrators/ExplicitEuler';
+import type { Integrator } from '../physics/integrators/Integrator';
 import {
   computeSpringEnergy,
   createSpringState,
@@ -45,9 +47,11 @@ const SPRING_RADIUS = 0.15;
 
 export class SpringExperiment implements Experiment<ExperimentRenderContext> {
   private params: SpringParams = { ...DEFAULT_PARAMS };
+  private useExplicitEuler = false;
   private state = createSpringState(this.params);
   private prevState = createSpringState(this.params);
-  private integrator = new RK4();
+  private rk4 = new RK4();
+  private euler = new ExplicitEuler();
   private recorder: MeasurementRecorder | null = null;
 
   private anchor: THREE.Object3D | null = null;
@@ -56,6 +60,10 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
   private renderKit: RenderKit | null = null;
   private root: THREE.Group | null = null;
   private springPoints: THREE.Vector3[] = [];
+
+  private get integrator(): Integrator {
+    return this.useExplicitEuler ? this.euler : this.rk4;
+  }
 
   setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
@@ -134,6 +142,14 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
       { key: 'mass', label: 'Mass', type: 'slider', default: 1, min: 0.1, max: 5, step: 0.1, unit: 'kg' },
       { key: 'damping', label: 'Damping', type: 'slider', default: 0.1, min: 0, max: 2, step: 0.01, unit: 'N·s/m', description: 'Damping force proportional to velocity. Reduces measured frequency vs theory.' },
       { key: 'initialDisplacement', label: 'Initial Displacement', type: 'slider', default: 1, min: -2, max: 2, step: 0.05, unit: 'm', description: 'Starting position from equilibrium. Negative = compressed.' },
+      {
+        key: 'useExplicitEuler',
+        label: 'Use explicit Euler',
+        type: 'toggle',
+        default: false,
+        description:
+          'Pedagogical: unstable for oscillators (energy grows). Compare A/B — Set A off, Set B on — to watch energy_total diverge.',
+      },
     ];
   }
 
@@ -144,6 +160,7 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
       damping: Number(params.damping ?? this.params.damping),
       initialDisplacement: Number(params.initialDisplacement ?? this.params.initialDisplacement),
     };
+    this.useExplicitEuler = Boolean(params.useExplicitEuler ?? this.useExplicitEuler);
     this.reset();
   }
 

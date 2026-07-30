@@ -37,6 +37,7 @@ registerExperiment({
 - Register `energy_kinetic`, `energy_potential`, and `energy_total` when applicable so the graph Energy view works.
 - Use `context.renderKit` for all Three.js objects (auto-disposed on switch).
 - Use RK4 for oscillators; semi-implicit Euler for non-oscillatory systems.
+- Pendulum/Spring: optional **Use explicit Euler** toggle is for Compare A/B energy pedagogy (Set A = RK4, Set B = Euler).
 - Comparison mode is framework-owned: do not build a second viewport inside the experiment.
 
 ## Template
