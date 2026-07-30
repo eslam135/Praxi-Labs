@@ -133,6 +133,7 @@ export class ExperimentHost {
       camera: this.camera,
       renderKit: this.renderKit,
       recorder: this.recorder,
+      syncCameraTarget: (x, y, z) => this.sceneManager?.syncCameraTarget(x, y, z),
     };
 
     this.current.setup(context);

@@ -19,6 +19,7 @@ export function frameCameraToBounds(
   bounds: ViewBounds,
   aspect: number,
   padding = 1.3,
+  syncCameraTarget?: (x: number, y: number, z: number) => void,
 ): void {
   const width = (bounds.maxX - bounds.minX) * padding;
   const height = (bounds.maxY - bounds.minY) * padding;
@@ -34,4 +35,5 @@ export function frameCameraToBounds(
   camera.position.set(centerX, centerY, distance);
   camera.lookAt(centerX, centerY, 0);
   camera.updateProjectionMatrix();
+  syncCameraTarget?.(centerX, centerY, 0);
 }

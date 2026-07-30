@@ -45,10 +45,14 @@ export interface MeasurementSnapshot {
   time: Float64Array;
   channels: MeasurementChannel[];
   scalars: ScalarMetric[];
-  /** Number of valid samples in the ring buffers */
+  /** Number of valid samples in the ring buffers (axis length when comparing = max A/B). */
   count: number;
   /** True when channels include set-B overlays (ids suffixed with __B). */
   comparisonActive?: boolean;
+  /** Valid sample count for set A when comparison is active. */
+  primaryCount?: number;
+  /** Valid sample count for set B when comparison is active. */
+  secondaryCount?: number;
 }
 
 export interface ExperimentContext {
@@ -57,6 +61,8 @@ export interface ExperimentContext {
   camera: THREE.PerspectiveCamera;
   renderKit: RenderKit;
   recorder: MeasurementRecorder;
+  /** Sync orbit-controls target after programmatic camera framing. */
+  syncCameraTarget?: (x: number, y: number, z: number) => void;
 }
 
 export interface Experiment {

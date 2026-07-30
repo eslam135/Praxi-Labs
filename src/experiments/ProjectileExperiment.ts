@@ -63,6 +63,7 @@ export class ProjectileExperiment implements Experiment {
   private root: THREE.Group | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
   private renderKit: RenderKit | null = null;
+  private syncCameraTarget: ((x: number, y: number, z: number) => void) | null = null;
   private projectile: THREE.Mesh | null = null;
   private predictedLine: THREE.Line | null = null;
   private actualTrail: THREE.Line | null = null;
@@ -76,6 +77,7 @@ export class ProjectileExperiment implements Experiment {
     this.root = context.root;
     this.camera = context.camera;
     this.renderKit = context.renderKit;
+    this.syncCameraTarget = context.syncCameraTarget ?? null;
 
     this.recorder.registerChannel('x', 'Horizontal Position', 'm');
     this.recorder.registerChannel('y', 'Vertical Position', 'm');
@@ -184,6 +186,7 @@ export class ProjectileExperiment implements Experiment {
     this.root = null;
     this.camera = null;
     this.renderKit = null;
+    this.syncCameraTarget = null;
   }
 
   getMeasurements(): MeasurementSnapshot {
@@ -256,6 +259,7 @@ export class ProjectileExperiment implements Experiment {
       { minX: -1, maxX, minY: -0.5, maxY },
       aspect,
       1.35,
+      this.syncCameraTarget ?? undefined,
     );
   }
 

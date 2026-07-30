@@ -68,7 +68,7 @@ Energy channels (`energy_kinetic`, `energy_potential`, `energy_total`) are recor
 
 | Package | Why |
 |---------|-----|
-| `three` | Required 3D engine for the assessment |
+| `three` | Required 3D engine for the assessment (includes `OrbitControls` via `three/addons`) |
 | `vite` | Dev server + bundler |
 | `typescript` | Type safety for the Experiment contract |
 | `vitest` | Unit tests for pure physics (no browser) |
