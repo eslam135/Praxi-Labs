@@ -100,11 +100,12 @@ Cursor rules in `.cursor/rules/` enforce architecture constraints (experiment in
 
 ## Known Limitations
 
-- Pendulum period theory uses small-angle formula `2π√(L/g)`; large angles deviate (nonlinear pendulum).
-- Spring frequency theory assumes undamped case; damping reduces measured frequency.
+- Pendulum period theory uses the first large-angle series correction `T ≈ T₀(1 + ½sin²(θ₀/2))`; very large amplitudes still deviate from the full elliptic integral.
+- Spring frequency theory uses the underdamped formula `f = √(ω₀² − γ²)/(2π)`; critical/overdamped cases report no oscillation frequency.
 - Projectile drag uses quadratic form `-c |v| v` (coefficient units documented in the UI).
 - Comparison mode is measurement/graph only — no dual 3D viewport.
 - Mobile layout is not optimized.
+- Graph scrubbing is read-only over recorded samples (no 3D timeline rewind).
 
 ## What I Would Do Next
 

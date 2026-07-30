@@ -23,6 +23,7 @@ import {
   computeSpringEnergy,
   createSpringState,
   springDerivatives,
+  springOscillationRegime,
   theoreticalSpringFrequency,
   type SpringParams,
 } from '../physics/equations/spring';
@@ -212,7 +213,16 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
       dispChannel && snapshot.count > 0
         ? measureFrequency(snapshot.time, dispChannel.values, snapshot.count)
         : null;
-    const theoretical = theoreticalSpringFrequency(this.params.springConstant, this.params.mass);
+    const theoretical = theoreticalSpringFrequency(
+      this.params.springConstant,
+      this.params.mass,
+      this.params.damping,
+    );
+    const regime = springOscillationRegime(
+      this.params.springConstant,
+      this.params.mass,
+      this.params.damping,
+    );
 
     const scalars: ScalarMetric[] = [
       {
@@ -223,14 +233,28 @@ export class SpringExperiment implements Experiment<ExperimentRenderContext> {
       },
     ];
 
-    if (measuredFreq !== null) {
+    if (measuredFreq !== null && theoretical !== null) {
       scalars.push({
         id: 'frequency',
-        label: 'Frequency',
+        label: regime === 'underdamped' ? 'Frequency (underdamped)' : 'Frequency',
         value: measuredFreq,
         unit: 'Hz',
         theoretical,
         percentError: percentDifference(measuredFreq, theoretical),
+      });
+    } else if (measuredFreq !== null) {
+      scalars.push({
+        id: 'frequency',
+        label: `Frequency (${regime})`,
+        value: measuredFreq,
+        unit: 'Hz',
+      });
+    } else if (theoretical === null && (regime === 'overdamped' || regime === 'critical')) {
+      scalars.push({
+        id: 'frequency',
+        label: `No oscillation (${regime})`,
+        value: 0,
+        unit: 'Hz',
       });
     }
 

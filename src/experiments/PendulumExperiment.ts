@@ -168,7 +168,11 @@ export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
       angleChannel && snapshot.count > 0
         ? measurePeriod(snapshot.time, angleChannel.values, snapshot.count)
         : null;
-    const theoretical = theoreticalPendulumPeriod(this.params.length, this.params.gravity);
+    const theoretical = theoreticalPendulumPeriod(
+      this.params.length,
+      this.params.gravity,
+      this.params.initialAngle,
+    );
 
     const scalars: ScalarMetric[] = [
       {

@@ -8,4 +8,8 @@
 export { theoreticalAtwoodAcceleration, theoreticalAtwoodPosition } from '../equations/atwood';
 export { theoreticalPendulumPeriod } from '../equations/pendulum';
 export { theoreticalProjectileRange } from '../equations/projectile';
-export { theoreticalSpringFrequency } from '../equations/spring';
+export {
+  theoreticalSpringFrequency,
+  springOscillationRegime,
+  type SpringOscillationRegime,
+} from '../equations/spring';

@@ -42,6 +42,18 @@ export function computePendulumEnergy(state: Float64Array, params: PendulumParam
   return { kinetic, potential, total: kinetic + potential };
 }
 
-export function theoreticalPendulumPeriod(length: number, gravity: number): number {
-  return 2 * Math.PI * Math.sqrt(length / gravity);
+/**
+ * Small-angle period T₀ = 2π√(L/g).
+ * Large-angle correction (first elliptic series term):
+ *   T ≈ T₀ · (1 + (1/2) sin²(θ₀/2))
+ * Truncation: higher-order terms (k⁴, …) omitted; accurate for moderate amplitudes.
+ */
+export function theoreticalPendulumPeriod(
+  length: number,
+  gravity: number,
+  initialAngle = 0,
+): number {
+  const t0 = 2 * Math.PI * Math.sqrt(length / gravity);
+  const k = Math.sin(Math.abs(initialAngle) / 2);
+  return t0 * (1 + 0.5 * k * k);
 }

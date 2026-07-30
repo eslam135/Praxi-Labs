@@ -41,6 +41,52 @@ export function computeSpringEnergy(state: Float64Array, params: SpringParams): 
   return { kinetic, potential, total: kinetic + potential };
 }
 
-export function theoreticalSpringFrequency(springConstant: number, mass: number): number {
-  return Math.sqrt(springConstant / mass) / (2 * Math.PI);
+export type SpringOscillationRegime = 'undamped' | 'underdamped' | 'critical' | 'overdamped';
+
+/** Natural (undamped) angular frequency ω₀ = √(k/m). */
+export function springNaturalOmega(springConstant: number, mass: number): number {
+  return Math.sqrt(springConstant / mass);
+}
+
+/** Damping ratio parameter γ = c/(2m) in x'' + 2γ x' + ω₀² x = 0. */
+export function springDampingGamma(damping: number, mass: number): number {
+  return damping / (2 * mass);
+}
+
+export function springOscillationRegime(
+  springConstant: number,
+  mass: number,
+  damping: number,
+): SpringOscillationRegime {
+  const omega0 = springNaturalOmega(springConstant, mass);
+  const gamma = springDampingGamma(damping, mass);
+  const disc = omega0 * omega0 - gamma * gamma;
+  if (damping <= 0 || Math.abs(gamma) < 1e-15) return 'undamped';
+  if (disc > 1e-12) return 'underdamped';
+  if (Math.abs(disc) <= 1e-12) return 'critical';
+  return 'overdamped';
+}
+
+/**
+ * Oscillation frequency in Hz.
+ * Undamped: √(k/m) / 2π
+ * Underdamped: √(ω₀² − γ²) / 2π with γ = c/(2m)
+ * Critical/overdamped: returns null (no sustained oscillation).
+ */
+export function theoreticalSpringFrequency(
+  springConstant: number,
+  mass: number,
+  damping = 0,
+): number | null {
+  const regime = springOscillationRegime(springConstant, mass, damping);
+  if (regime === 'critical' || regime === 'overdamped') return null;
+
+  const omega0 = springNaturalOmega(springConstant, mass);
+  if (regime === 'undamped') {
+    return omega0 / (2 * Math.PI);
+  }
+
+  const gamma = springDampingGamma(damping, mass);
+  const omegaD = Math.sqrt(omega0 * omega0 - gamma * gamma);
+  return omegaD / (2 * Math.PI);
 }
