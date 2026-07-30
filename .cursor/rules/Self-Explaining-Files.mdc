@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+Every core file must start with a comment explaining:
+
+- its role
+- how it connects to the system
+- how to extend it

@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+
+Always use a fixed timestep simulation loop with accumulator pattern.
+
+- Simulation must not depend on frame rate
+- Rendering runs independently
+
+Reject any variable-delta physics updates.

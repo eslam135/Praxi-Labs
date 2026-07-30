@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+
+Commit frequently:
+
+- one feature per commit
+- clear messages
+
+Never do a single large commit.

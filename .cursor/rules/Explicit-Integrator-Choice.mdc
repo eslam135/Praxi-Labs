@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+
+Always implement physics integrators explicitly.
+
+Allowed:
+- Semi-implicit Euler
+- RK4
+
+Must:
+- Be isolated in physics layer
+- Be swappable
+- Be documented
+
+Never use naive explicit Euler for oscillators.

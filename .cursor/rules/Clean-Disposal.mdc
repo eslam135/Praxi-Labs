@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+
+Always dispose:
+
+- geometries
+- materials
+- textures
+
+When switching experiments.

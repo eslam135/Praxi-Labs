@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+
+Assume a new AI has ZERO context.
+
+Everything must be:
+- discoverable via code
+- documented in place
+- named clearly
+
+Avoid magic values, implicit flows, or hidden dependencies.

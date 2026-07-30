@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+
+All experiments must expose measurements via getMeasurements():
+
+- time-series data only
+- no UI logic inside
+
+Graph system consumes this data generically.

@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+
+Physics code must be deterministic.
+
+- Same inputs → same outputs
+- No randomness unless explicitly seeded

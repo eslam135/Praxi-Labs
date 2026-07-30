@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+
+NEVER create per-experiment UI.
+
+All UI must be generated dynamically from a parameter schema.
+
+Schema must fully describe:
+- name
+- type (slider, number, toggle)
+- min/max/step
+- default value

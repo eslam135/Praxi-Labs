@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+
+All experiments must be registered through a single registry:
+
+registerExperiment({
+  id: string,
+  factory: () => Experiment
+})
+
+Never instantiate experiments manually outside the registry.

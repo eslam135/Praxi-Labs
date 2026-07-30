@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+
+Enforce strict separation:
+
+- physics/ → pure math (NO Three.js)
+- rendering/ → Three.js only
+- experiments/ → glue layer only
+- ui/ → schema-driven UI
+- core/ → simulation loop + registry
+
+Never mix physics and rendering in the same file.

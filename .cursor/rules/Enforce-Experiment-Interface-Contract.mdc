@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+Always enforce a strict Experiment interface:
+
+- setup(scene)
+- update(dt)
+- reset()
+- getMeasurements()
+- getParameterSchema()
+
+Never allow experiments to access UI, renderer, or global state directly.
+All communication must go through the interface.

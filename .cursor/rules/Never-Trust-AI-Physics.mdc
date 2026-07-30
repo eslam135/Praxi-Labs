@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+
+Always verify:
+
+- equations
+- units
+- integration stability
+
+If AI outputs physics code:
+- cross-check with known formulas
+- test numerically

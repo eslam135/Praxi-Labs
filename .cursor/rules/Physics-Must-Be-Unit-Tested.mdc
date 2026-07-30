@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+
+All physics functions must have unit tests:
+
+- equations of motion
+- integrators
+- conservation (energy)
+
+Use Vitest or similar.

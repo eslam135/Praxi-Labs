@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+
+Avoid allocations inside update loops.
+
+Reuse vectors and objects.

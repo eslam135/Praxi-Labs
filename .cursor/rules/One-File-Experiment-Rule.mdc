@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+
+Design system so a new experiment requires:
+
+- 1 new file
+- 1 registry entry
+
+If more changes are required → architecture is wrong.
