@@ -18,6 +18,7 @@ import { ParameterPanel } from './ui/ParameterPanel';
 import { GraphSystem } from './ui/GraphSystem';
 import { ExperimentSwitcher } from './ui/ExperimentSwitcher';
 import { ScalarDisplay } from './ui/ScalarDisplay';
+import { SessionControls } from './ui/SessionControls';
 import { TopBar } from './ui/TopBar';
 import { UIUpdateScheduler } from './ui/UIUpdateScheduler';
 import { ResultsPanelResize } from './ui/ResultsPanelResize';
@@ -61,15 +62,17 @@ resultsResize.onResize(() => {
   window.dispatchEvent(new Event('resize'));
 });
 
+const topBar = new TopBar({
+  brandContainer: document.getElementById('top-bar-brand')!,
+});
+
 const switcher = new ExperimentSwitcher(
   document.getElementById('experiment-switcher')!,
   host,
 );
 
-const topBar = new TopBar({
-  brandContainer: document.getElementById('top-bar-brand')!,
-  switcherContainer: document.getElementById('experiment-switcher')!,
-  actionsContainer: document.getElementById('top-bar-actions')!,
+const sessionControls = new SessionControls({
+  container: document.getElementById('session-controls')!,
   onReset: () => {
     loop.resume();
     syncTransportUi(false);
@@ -89,7 +92,7 @@ const topBar = new TopBar({
   },
   onComparisonChange: (enabled) => {
     host.setComparisonEnabled(enabled);
-    topBar.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
+    sessionControls.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
     uiScheduler.forceUpdate(host.getMeasurements());
   },
   onEditTargetChange: (target) => {
@@ -99,7 +102,7 @@ const topBar = new TopBar({
 });
 
 syncTransportUi = (paused: boolean) => {
-  topBar.setPaused(paused);
+  sessionControls.setPaused(paused);
 };
 switcher.setOnSwitch((name) => topBar.setExperimentName(name));
 
@@ -108,7 +111,7 @@ function refreshUI(): void {
   if (!experiment) return;
   parameterPanel.bindSchema(experiment.getParameterSchema());
   parameterPanel.syncFromStore(parameterStore.getValues());
-  topBar.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
+  sessionControls.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
   graphSystem.setFollowLive(true);
   uiScheduler.forceUpdate(host.getMeasurements());
 }

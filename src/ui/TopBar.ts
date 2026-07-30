@@ -1,94 +1,57 @@
 /**
- * TopBar — application header with brand, experiment switcher, and global actions.
+ * TopBar — brand-only application header.
  *
- * Role: Top-level navigation and global controls (play/pause, reset, comparison mode).
- * Connections: Hosts ExperimentSwitcher; controls wired in main.ts.
- * Extension: Keep global transport controls here; experiment params stay schema-driven.
+ * Role: Catchy product identity; no experiment or transport controls.
+ * Connections: Brand container in index.html; experiment name via setExperimentName.
+ * Extension: Keep controls out of the header — use SessionControls in the left panel.
  */
-import type { ComparisonEditTarget } from '../core/types';
-import { createButton } from './components/Button';
-import { createSelect, type SelectElement } from './components/Select';
-import { createToggle, type ToggleElement } from './components/Toggle';
-
 export interface TopBarOptions {
   brandContainer: HTMLElement;
-  switcherContainer: HTMLElement;
-  actionsContainer: HTMLElement;
-  onReset: () => void;
-  onPlayPause: () => void;
-  onComparisonChange: (enabled: boolean) => void;
-  onEditTargetChange: (target: ComparisonEditTarget) => void;
 }
 
 export class TopBar {
-  private subtitleEl: HTMLElement;
-  private compareToggle: ToggleElement;
-  private editSelect: SelectElement;
-  private editWrap: HTMLElement;
-  private playPauseBtn: HTMLButtonElement;
+  private activeEl: HTMLElement;
 
   constructor(options: TopBarOptions) {
+    const brand = document.createElement('div');
+    brand.className = 'brand';
+
+    const mark = document.createElement('div');
+    mark.className = 'brand__mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.innerHTML =
+      '<svg viewBox="0 0 32 32" width="28" height="28" fill="none">' +
+      '<circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>' +
+      '<circle cx="16" cy="16" r="5" fill="currentColor"/>' +
+      '<circle cx="16" cy="4" r="2.2" fill="currentColor"/>' +
+      '<path d="M16 16 L16 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+      '</svg>';
+
+    const text = document.createElement('div');
+    text.className = 'brand__text';
+
     const title = document.createElement('h1');
-    title.className = 'text-title';
-    title.textContent = 'Praxi Physics Lab';
+    title.className = 'brand__name';
+    title.innerHTML = '<span class="brand__praxi">Praxi</span><span class="brand__lab"> Physics Lab</span>';
 
-    this.subtitleEl = document.createElement('span');
-    this.subtitleEl.className = 'text-subtitle';
+    const tagline = document.createElement('p');
+    tagline.className = 'brand__tagline';
+    tagline.textContent = 'See the equations move';
 
-    options.brandContainer.appendChild(title);
-    options.brandContainer.appendChild(this.subtitleEl);
+    this.activeEl = document.createElement('span');
+    this.activeEl.className = 'brand__active';
+    this.activeEl.textContent = '';
 
-    this.playPauseBtn = createButton({
-      label: 'Pause',
-      variant: 'secondary',
-      onClick: options.onPlayPause,
-    });
-    options.actionsContainer.appendChild(this.playPauseBtn);
+    text.appendChild(title);
+    text.appendChild(tagline);
 
-    this.compareToggle = createToggle({
-      id: 'comparison-toggle',
-      label: 'Compare A/B',
-      checked: false,
-      onChange: (checked) => {
-        this.editWrap.hidden = !checked;
-        options.onComparisonChange(checked);
-      },
-    });
-    options.actionsContainer.appendChild(this.compareToggle.root);
-
-    this.editSelect = createSelect({
-      id: 'comparison-edit-target',
-      label: 'Edit',
-      options: [
-        { value: 'A', label: 'Set A (3D)' },
-        { value: 'B', label: 'Set B (graph)' },
-      ],
-      value: 'A',
-      onChange: (value) => options.onEditTargetChange(value as ComparisonEditTarget),
-    });
-    this.editWrap = this.editSelect.root;
-    this.editWrap.hidden = true;
-    options.actionsContainer.appendChild(this.editWrap);
-
-    const resetBtn = createButton({
-      label: 'Reset Simulation',
-      variant: 'secondary',
-      onClick: options.onReset,
-    });
-    options.actionsContainer.appendChild(resetBtn);
+    brand.appendChild(mark);
+    brand.appendChild(text);
+    brand.appendChild(this.activeEl);
+    options.brandContainer.appendChild(brand);
   }
 
   setExperimentName(name: string): void {
-    this.subtitleEl.textContent = name;
-  }
-
-  setPaused(paused: boolean): void {
-    this.playPauseBtn.textContent = paused ? 'Play' : 'Pause';
-  }
-
-  setComparisonUi(enabled: boolean, editTarget: ComparisonEditTarget): void {
-    this.compareToggle.setChecked(enabled);
-    this.editWrap.hidden = !enabled;
-    this.editSelect.setValue(editTarget);
+    this.activeEl.textContent = name;
   }
 }

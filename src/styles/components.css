@@ -87,6 +87,98 @@
   color: var(--color-text-primary);
 }
 
+/* Experiment pill switcher */
+.experiment-switch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.experiment-switch__label {
+  font-size: var(--text-section);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.experiment-switch__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.experiment-switch__btn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 8px 6px;
+  font-family: var(--font-family);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.experiment-switch__btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+}
+
+.experiment-switch__btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.experiment-switch__btn.is-active {
+  color: #0a1628;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+  font-weight: 700;
+}
+
+/* Session transport / compare */
+.session-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.session-controls__transport {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+}
+
+.session-controls__btn {
+  width: 100%;
+}
+
+.session-controls__compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.session-controls__compare .ui-select-wrap,
+.session-controls__compare .toggle-field {
+  width: 100%;
+}
+
 /* Select */
 .ui-select-wrap {
   display: flex;

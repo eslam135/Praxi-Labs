@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/styles/main.css" />
@@ -16,11 +16,13 @@
     <div id="app">
       <header class="top-bar">
         <div class="top-bar__brand" id="top-bar-brand"></div>
-        <div class="top-bar__switcher" id="experiment-switcher"></div>
-        <div class="top-bar__actions" id="top-bar-actions"></div>
       </header>
       <main class="app-body">
-        <aside class="panel panel--params" id="parameter-panel"></aside>
+        <aside class="panel panel--params">
+          <section id="experiment-switcher"></section>
+          <section id="session-controls"></section>
+          <section id="parameter-panel"></section>
+        </aside>
         <section class="viewport">
           <canvas id="simulation-canvas"></canvas>
         </section>

@@ -5,37 +5,94 @@
   overflow: hidden;
 }
 
-/* Top bar */
+/* Top bar — brand only */
 .top-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
   height: var(--top-bar-height);
   padding: 0 var(--space-3);
-  background: var(--color-surface);
+  background:
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, transparent 42%),
+    var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .top-bar__brand {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   min-width: 0;
+  width: 100%;
 }
 
-.top-bar__actions {
+.brand {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
 }
 
-.top-bar__switcher {
+.brand__mark {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.brand__text {
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.brand__name {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+}
+
+.brand__praxi {
+  color: var(--color-accent);
+}
+
+.brand__lab {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.brand__tagline {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.brand__active {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  white-space: nowrap;
+}
+
+.brand__active:empty {
+  display: none;
 }
 
 /* Main body grid — minmax(0, 1fr) lets the viewport shrink when the results panel grows leftward */
@@ -52,6 +109,15 @@
   border-right: 1px solid var(--color-border);
   overflow-y: auto;
   padding: var(--space-2);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+#experiment-switcher,
+#session-controls,
+#parameter-panel {
   min-width: 0;
 }
 
@@ -184,14 +250,17 @@ body.is-resizing-panel #simulation-canvas {
 
   .top-bar {
     padding: 0 var(--space-2);
-    flex-wrap: wrap;
     height: auto;
     min-height: var(--top-bar-height);
     padding-top: var(--space-1);
     padding-bottom: var(--space-1);
   }
 
-  .top-bar__brand .text-subtitle {
+  .brand__tagline {
+    display: none;
+  }
+
+  .brand__active {
     display: none;
   }
 
