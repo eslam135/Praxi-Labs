@@ -1,0 +1,346 @@
+%% Praxi Physics Lab — detailed class / contract diagram
+%% Open in any Mermaid viewer (GitHub, mermaid.live, VS Code Mermaid preview)
+%% Relationships: solid = association/composition; dashed = dependency / implements
+
+classDiagram
+  direction TB
+
+  %% ========== CORE CONTRACTS ==========
+  class Parameterized {
+    <<interface>>
+    +getParameterSchema() ParameterSchema[]
+    +setParameters(params)
+  }
+  class Steppable {
+    <<interface>>
+    +update(dt)
+    +reset()
+  }
+  class Measurable {
+    <<interface>>
+    +getMeasurements() MeasurementSnapshot
+  }
+  class SceneAttached~C~ {
+    <<interface>>
+    +setup(context C)
+    +dispose()
+    +render(alpha)?
+  }
+  class Experiment~C~ {
+    <<interface>>
+    Full assessment contract
+  }
+  Parameterized <|-- Experiment
+  Steppable <|-- Experiment
+  Measurable <|-- Experiment
+  SceneAttached <|-- Experiment
+
+  class ParameterSchema {
+    <<interface>>
+    +key: string
+    +label: string
+    +type: slider|number|toggle
+    +default: number|boolean
+    +min max step unit description
+  }
+  class MeasurementSnapshot {
+    <<interface>>
+    +time: Float64Array
+    +channels: MeasurementChannel[]
+    +scalars: ScalarMetric[]
+    +count: number
+    +comparisonActive?
+    +primaryCount?
+    +secondaryCount?
+  }
+  class ScalarMetric {
+    <<interface>>
+    +id label value
+    +unit?
+    +theoretical?
+    +percentError?
+  }
+  class ExperimentRegistration~C~ {
+    <<interface>>
+    +id: string
+    +name: string
+    +factory() Experiment~C~
+  }
+  class ExperimentSceneAdapter~C~ {
+    <<interface>>
+    +prepareForExperiment(id)
+    +createPrimaryContext(recorder) C
+    +disposePrimaryVisuals()
+  }
+  class Integrator {
+    <<interface>>
+    +step(state, derivatives, dt)
+  }
+
+  %% ========== CORE RUNTIME ==========
+  class ExperimentHost~C~ {
+    -parameterStore
+    -scene: ExperimentSceneAdapter
+    -recorder: MeasurementRecorder
+    -comparison: ComparisonController
+    -current: Experiment
+    +switchExperiment(id)
+    +fixedUpdate(dt)
+    +render(alpha)
+    +reset()
+    +getMeasurements()
+    +setComparisonEnabled(bool)
+    +setComparisonEditTarget(A|B)
+  }
+  class ComparisonController~C~ {
+    -paramsA
+    -paramsB
+    -experimentB
+    -editTarget
+    +setEnabled(enabled, id, seed)
+    +switchEditTarget(target, panelValues)
+    +applyPanelParams(params, primary)
+    +fixedUpdate(dt)
+    +mergeWithPrimary(snapshot)
+  }
+  class ParameterStore {
+    -values
+    -listeners
+    +setSchema(schema)
+    +getValues()
+    +setValue(key, value)
+    +setValues(values, silent?)
+    +onChange(listener)
+  }
+  class MeasurementRecorder {
+    -time
+    -channels
+    -count
+    +registerChannel(id, label, unit)
+    +append(dt, samples)
+    +clear()
+    +getSnapshot(scalars?)
+  }
+  class SimulationLoop {
+    +FIXED_DT = 1/120
+    +MAX_SUBSTEPS = 5
+    +start()
+    +stop()
+  }
+  class ExperimentRegistry {
+    <<module>>
+    +registerExperiment(entry)
+    +getExperiment(id)
+    +listExperiments()
+  }
+
+  ExperimentHost --> ParameterStore : listens
+  ExperimentHost --> MeasurementRecorder : owns
+  ExperimentHost --> ComparisonController : owns
+  ExperimentHost --> ExperimentSceneAdapter : injected
+  ExperimentHost --> Experiment : current A
+  ExperimentHost ..> ExperimentRegistry : loads
+  ComparisonController --> Experiment : headless B
+  ComparisonController ..> ExperimentRegistry : factory
+  ComparisonController --> Parameterized : applyPanelParams
+  SimulationLoop ..> ExperimentHost : fixedUpdate + render
+  ParameterStore ..> ParameterSchema : setSchema
+
+  %% ========== PHYSICS ==========
+  class RK4 {
+    +step(state, derivatives, dt)
+  }
+  class SemiImplicitEuler {
+    +step(state, derivatives, dt)
+  }
+  Integrator <|.. RK4
+  Integrator <|.. SemiImplicitEuler
+
+  class PendulumParams {
+    <<interface>>
+    length gravity damping initialAngle
+  }
+  class SpringParams {
+    <<interface>>
+    springConstant mass damping initialDisplacement
+  }
+  class ProjectileParams {
+    <<interface>>
+    launchAngle initialSpeed gravity dragCoefficient
+  }
+
+  class PendulumEquations {
+    <<module>>
+    +createPendulumState()
+    +pendulumDerivatives()
+    +computePendulumEnergy()
+    +theoreticalPendulumPeriod()
+  }
+  class SpringEquations {
+    <<module>>
+    +createSpringState()
+    +springDerivatives()
+    +computeSpringEnergy()
+    +theoreticalSpringFrequency()
+  }
+  class ProjectileEquations {
+    <<module>>
+    +createProjectileState()
+    +projectileDerivatives()
+    +computeProjectileEnergy()
+    +theoreticalProjectileRange()
+    +analyticTrajectoryPoints()
+    +getTrajectoryBounds()
+  }
+  class PeriodAnalysis {
+    <<module>>
+    +measurePeriod()
+    +measureFrequency()
+    +percentDifference()
+  }
+
+  %% ========== RENDERING ==========
+  class ExperimentRenderContext {
+    <<interface>>
+    +scene: THREE.Scene
+    +root: THREE.Group
+    +camera: PerspectiveCamera
+    +renderKit: RenderKit
+    +recorder: MeasurementRecorder
+    +syncCameraTarget()?
+  }
+  class SceneManager {
+    +scene camera renderer controls
+    +setEnvironmentStyle(style)
+    +resetCamera()
+    +syncCameraTarget(x,y,z)
+    +render()
+  }
+  class PrimaryExperimentSceneAdapter {
+    -experimentRoot
+    -renderKit
+    +prepareForExperiment(id)
+    +createPrimaryContext(recorder)
+    +disposePrimaryVisuals()
+  }
+  class RenderKit {
+    +track(resource)
+    +addToScene(parent, object)
+    +disposeAll()
+  }
+  class OffscreenFactory {
+    <<function>>
+    createOffscreenExperimentContext(recorder)
+  }
+  class Primitives {
+    <<module>>
+    +createSphere/Rod/Line/Box/Marker/Spring
+    +updateLinePoints()
+    +updateSpringPoints()
+  }
+  class CameraUtils {
+    <<module>>
+    +frameCameraToBounds()
+  }
+
+  ExperimentSceneAdapter <|.. PrimaryExperimentSceneAdapter
+  PrimaryExperimentSceneAdapter --> SceneManager
+  PrimaryExperimentSceneAdapter --> RenderKit
+  PrimaryExperimentSceneAdapter ..> ExperimentRenderContext : builds
+  OffscreenFactory ..> ExperimentRenderContext : builds
+  OffscreenFactory --> RenderKit
+
+  %% ========== EXPERIMENTS ==========
+  class PendulumExperiment {
+    -params state prevState
+    -integrator: RK4
+    +setup update render reset dispose
+    +getMeasurements getParameterSchema setParameters
+  }
+  class SpringExperiment {
+    -params state prevState
+    -integrator: RK4
+    +setup update render reset dispose
+    +getMeasurements getParameterSchema setParameters
+  }
+  class ProjectileExperiment {
+    -params state prevState
+    -integrator: SemiImplicitEuler
+    -launched landed
+    +setup update render reset dispose
+    +getMeasurements getParameterSchema setParameters
+  }
+
+  Experiment <|.. PendulumExperiment
+  Experiment <|.. SpringExperiment
+  Experiment <|.. ProjectileExperiment
+  PendulumExperiment --> RK4
+  PendulumExperiment ..> PendulumEquations
+  PendulumExperiment ..> PeriodAnalysis
+  PendulumExperiment ..> Primitives
+  SpringExperiment --> RK4
+  SpringExperiment ..> SpringEquations
+  SpringExperiment ..> PeriodAnalysis
+  SpringExperiment ..> Primitives
+  ProjectileExperiment --> SemiImplicitEuler
+  ProjectileExperiment ..> ProjectileEquations
+  ProjectileExperiment ..> CameraUtils
+  ProjectileExperiment ..> Primitives
+  PendulumExperiment ..> ExperimentRenderContext : setup(C)
+  SpringExperiment ..> ExperimentRenderContext : setup(C)
+  ProjectileExperiment ..> ExperimentRenderContext : setup(C)
+  PendulumExperiment --> MeasurementRecorder : append
+  SpringExperiment --> MeasurementRecorder : append
+  ProjectileExperiment --> MeasurementRecorder : append
+
+  %% ========== UI ==========
+  class ParameterPanel {
+    +bindSchema(schema)
+    +syncFromStore(values)
+  }
+  class GraphSystem {
+    +updateSnapshot(snapshot)
+    +notifyLayoutChange()
+  }
+  class ScalarDisplay {
+    +update(scalars)
+  }
+  class UIUpdateScheduler {
+    +tick(measurements)
+    +forceUpdate(measurements)
+  }
+  class TopBar {
+    +setExperimentName(name)
+    +setComparisonUi(enabled, target)
+  }
+  class ExperimentSwitcher {
+    +setActive(id)
+    +setOnSwitch(cb)
+  }
+  class ResultsPanelResize {
+    +onResize(listener)
+  }
+
+  ParameterPanel --> ParameterStore : writes
+  ExperimentSwitcher --> ExperimentHost : switchExperiment
+  TopBar ..> ExperimentHost : reset / compare
+  UIUpdateScheduler --> ScalarDisplay
+  UIUpdateScheduler --> GraphSystem
+  GraphSystem ..> MeasurementSnapshot : plots
+  ScalarDisplay ..> ScalarMetric : cards
+  ResultsPanelResize ..> GraphSystem : notifyLayoutChange
+
+  %% ========== BOOTSTRAP ==========
+  class Main {
+    <<entrypoint>>
+    wires SceneManager Adapter Host UI Loop
+  }
+  Main ..> ExperimentHost : constructs
+  Main ..> PrimaryExperimentSceneAdapter : injects
+  Main ..> OffscreenFactory : injects
+  Main ..> SimulationLoop : starts
+  Main ..> ParameterPanel
+  Main ..> TopBar
+  Main ..> ExperimentSwitcher
+  Main ..> UIUpdateScheduler
+  Main ..> ResultsPanelResize
