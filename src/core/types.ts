@@ -1,13 +1,12 @@
 /**
  * Core type contracts for the Physics Experiments Platform.
  *
- * Role: Single source of truth for all interfaces shared across modules.
+ * Role: Single source of truth for experiment and measurement contracts (no Three.js).
  * Connections: Imported by core/, experiments/, ui/, rendering/, and physics/.
  * Extension: Read this file first when adding a new experiment or framework feature.
+ * SOLID: Experiment is composed from narrow interfaces (ISP) while remaining one type for agents.
  */
-import type * as THREE from 'three';
 import type { MeasurementRecorder } from './MeasurementRecorder';
-import type { RenderKit } from '../rendering/RenderKit';
 
 export type ParameterType = 'slider' | 'number' | 'toggle';
 
@@ -55,41 +54,73 @@ export interface MeasurementSnapshot {
   secondaryCount?: number;
 }
 
-export interface ExperimentContext {
-  scene: THREE.Scene;
-  root: THREE.Group;
-  camera: THREE.PerspectiveCamera;
-  renderKit: RenderKit;
-  recorder: MeasurementRecorder;
-  /** Sync orbit-controls target after programmatic camera framing. */
-  syncCameraTarget?: (x: number, y: number, z: number) => void;
+/** Schema + writable parameters (ISP slice). */
+export interface Parameterized {
+  getParameterSchema(): ParameterSchema[];
+  setParameters(params: ParameterValues): void;
 }
 
-export interface Experiment {
-  setup(context: ExperimentContext): void;
+/** Fixed-timestep simulation lifecycle (ISP slice). */
+export interface Steppable {
   update(dt: number): void;
+  reset(): void;
+}
+
+/** Measurement export for graphs/scalars (ISP slice). */
+export interface Measurable {
+  getMeasurements(): MeasurementSnapshot;
+}
+
+/**
+ * Scene attachment lifecycle (ISP slice).
+ * C is the render context type supplied by the rendering layer (DIP).
+ */
+export interface SceneAttached<C = unknown> {
+  setup(context: C): void;
+  dispose(): void;
   /**
    * Optional visual interpolation between fixed physics steps.
    * alpha is in [0, 1] from the simulation accumulator (0 = previous state, 1 = current).
    */
   render?(alpha: number): void;
-  reset(): void;
-  dispose(): void;
-  getMeasurements(): MeasurementSnapshot;
-  getParameterSchema(): ParameterSchema[];
-  setParameters(params: ParameterValues): void;
 }
+
+/**
+ * Full experiment contract required by the platform / assessment brief.
+ * Composed from narrower interfaces; implement this one type in experiment files.
+ */
+export interface Experiment<C = unknown>
+  extends Parameterized, Steppable, Measurable, SceneAttached<C> {}
 
 export type ComparisonEditTarget = 'A' | 'B';
 
 /** Suffix appended to measurement channel ids for comparison set B. */
 export const COMPARISON_B_SUFFIX = '__B';
 
-export interface ExperimentRegistration {
+export interface ExperimentRegistration<C = unknown> {
   id: string;
   name: string;
-  factory: () => Experiment;
+  factory: () => Experiment<C>;
 }
+
+/**
+ * Rendering-layer adapter injected into ExperimentHost (DIP).
+ * Core never imports Three.js; main/rendering provide the concrete adapter.
+ */
+export interface ExperimentSceneAdapter<C> {
+  /** Environment + camera reset before setup. */
+  prepareForExperiment(experimentId: string): void;
+  /** Build a fresh primary context bound to the live viewport. */
+  createPrimaryContext(recorder: MeasurementRecorder): C;
+  /** Dispose geometries/materials and clear the experiment root. */
+  disposePrimaryVisuals(): void;
+}
+
+/** Factory for headless/offscreen comparison contexts. */
+export type OffscreenContextFactory<C> = (recorder: MeasurementRecorder) => {
+  context: C;
+  dispose: () => void;
+};
 
 export type DerivativeFunction = (state: Float64Array, out: Float64Array) => void;
 

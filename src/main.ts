@@ -11,6 +11,9 @@ import { ParameterStore } from './core/ParameterStore';
 import { SimulationLoop } from './core/SimulationLoop';
 import { listExperiments } from './core/ExperimentRegistry';
 import { SceneManager } from './rendering/SceneManager';
+import { PrimaryExperimentSceneAdapter } from './rendering/PrimaryExperimentSceneAdapter';
+import { createOffscreenExperimentContext } from './rendering/createOffscreenExperimentContext';
+import type { ExperimentRenderContext } from './rendering/ExperimentRenderContext';
 import { ParameterPanel } from './ui/ParameterPanel';
 import { GraphSystem } from './ui/GraphSystem';
 import { ExperimentSwitcher } from './ui/ExperimentSwitcher';
@@ -28,7 +31,12 @@ if (!appBody || !resultsPanel) throw new Error('Layout panels not found');
 
 const sceneManager = new SceneManager(canvas);
 const parameterStore = new ParameterStore();
-const host = new ExperimentHost(sceneManager.scene, sceneManager.camera, parameterStore, sceneManager);
+const sceneAdapter = new PrimaryExperimentSceneAdapter(sceneManager);
+const host = new ExperimentHost<ExperimentRenderContext>(
+  parameterStore,
+  sceneAdapter,
+  createOffscreenExperimentContext,
+);
 
 const parameterPanel = new ParameterPanel(
   document.getElementById('parameter-panel')!,

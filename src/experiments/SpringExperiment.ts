@@ -8,7 +8,6 @@
 import * as THREE from 'three';
 import type {
   Experiment,
-  ExperimentContext,
   MeasurementSnapshot,
   ParameterSchema,
   ParameterValues,
@@ -16,6 +15,7 @@ import type {
 } from '../core/types';
 import type { MeasurementRecorder } from '../core/MeasurementRecorder';
 import type { RenderKit } from '../rendering/RenderKit';
+import type { ExperimentRenderContext } from '../rendering/ExperimentRenderContext';
 import { RK4 } from '../physics/integrators/RK4';
 import {
   computeSpringEnergy,
@@ -43,7 +43,7 @@ const SPRING_REST_LENGTH = 2;
 const SPRING_COILS = 8;
 const SPRING_RADIUS = 0.15;
 
-export class SpringExperiment implements Experiment {
+export class SpringExperiment implements Experiment<ExperimentRenderContext> {
   private params: SpringParams = { ...DEFAULT_PARAMS };
   private state = createSpringState(this.params);
   private prevState = createSpringState(this.params);
@@ -57,7 +57,7 @@ export class SpringExperiment implements Experiment {
   private root: THREE.Group | null = null;
   private springPoints: THREE.Vector3[] = [];
 
-  setup(context: ExperimentContext): void {
+  setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
     this.renderKit = context.renderKit;
     this.root = context.root;
@@ -158,7 +158,7 @@ export class SpringExperiment implements Experiment {
     }
   }
 
-  private buildSpring(context: ExperimentContext): void {
+  private buildSpring(context: ExperimentRenderContext): void {
     this.renderKit = context.renderKit;
     this.root = context.root;
 

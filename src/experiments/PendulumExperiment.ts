@@ -8,13 +8,13 @@
 import * as THREE from 'three';
 import type {
   Experiment,
-  ExperimentContext,
   MeasurementSnapshot,
   ParameterSchema,
   ParameterValues,
   ScalarMetric,
 } from '../core/types';
 import type { MeasurementRecorder } from '../core/MeasurementRecorder';
+import type { ExperimentRenderContext } from '../rendering/ExperimentRenderContext';
 import { RK4 } from '../physics/integrators/RK4';
 import {
   computePendulumEnergy,
@@ -33,7 +33,7 @@ const DEFAULT_PARAMS: PendulumParams = {
   initialAngle: Math.PI / 4,
 };
 
-export class PendulumExperiment implements Experiment {
+export class PendulumExperiment implements Experiment<ExperimentRenderContext> {
   private params: PendulumParams = { ...DEFAULT_PARAMS };
   private state = createPendulumState(this.params);
   private prevState = createPendulumState(this.params);
@@ -45,7 +45,7 @@ export class PendulumExperiment implements Experiment {
   private bob: THREE.Mesh | null = null;
   private baseRodLength = 2;
 
-  setup(context: ExperimentContext): void {
+  setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
     this.recorder.registerChannel('angle', 'Angle', 'rad');
     this.recorder.registerChannel('angular_velocity', 'Angular Velocity', 'rad/s');

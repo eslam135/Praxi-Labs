@@ -8,7 +8,6 @@
 import * as THREE from 'three';
 import type {
   Experiment,
-  ExperimentContext,
   MeasurementSnapshot,
   ParameterSchema,
   ParameterValues,
@@ -16,6 +15,7 @@ import type {
 } from '../core/types';
 import type { MeasurementRecorder } from '../core/MeasurementRecorder';
 import type { RenderKit } from '../rendering/RenderKit';
+import type { ExperimentRenderContext } from '../rendering/ExperimentRenderContext';
 import { frameCameraToBounds } from '../rendering/cameraUtils';
 import { SemiImplicitEuler } from '../physics/integrators/SemiImplicitEuler';
 import {
@@ -50,7 +50,7 @@ const COLOR_ACTUAL = 0x38bdf8;
 const COLOR_PROJECTILE = 0xff7043;
 const COLOR_LANDING = 0xfbbf24;
 
-export class ProjectileExperiment implements Experiment {
+export class ProjectileExperiment implements Experiment<ExperimentRenderContext> {
   private params: ProjectileParams = { ...DEFAULT_PARAMS };
   private launched = false;
   private state = createProjectileState(this.params);
@@ -72,7 +72,7 @@ export class ProjectileExperiment implements Experiment {
   private cannon: THREE.Mesh | null = null;
   private trailPoints: THREE.Vector3[] = [];
 
-  setup(context: ExperimentContext): void {
+  setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
     this.root = context.root;
     this.camera = context.camera;
@@ -235,7 +235,7 @@ export class ProjectileExperiment implements Experiment {
     }
   }
 
-  private buildLaunchPad(context: ExperimentContext): void {
+  private buildLaunchPad(context: ExperimentRenderContext): void {
     this.launchPad = createBox(context.renderKit, context.root, 1.2, 0.15, 0.8, 0x334155);
     this.launchPad.position.set(0, 0.075, 0);
 

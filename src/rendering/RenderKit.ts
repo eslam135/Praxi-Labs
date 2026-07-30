@@ -2,7 +2,7 @@
  * RenderKit — tracks Three.js resources for safe disposal on experiment switch.
  *
  * Role: Wraps geometry/material/mesh creation; prevents GPU memory leaks.
- * Connections: Injected into ExperimentContext; used by all experiments.
+ * Connections: Injected into ExperimentRenderContext; used by all experiments.
  * Extension: Use track() for any custom Three.js resource an experiment creates.
  */
 import * as THREE from 'three';

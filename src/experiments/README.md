@@ -1,10 +1,23 @@
 # Adding a New Experiment
 
-**Start here:** [`src/core/types.ts`](../core/types.ts) — all framework interfaces.
+**Start here:** [`src/core/types.ts`](../core/types.ts) — framework contracts.
+
+Setup context type: [`ExperimentRenderContext`](../rendering/ExperimentRenderContext.ts) (Three.js fields live in `rendering/`, not `core/`).
+
+## Experiment contract (composed)
+
+Implement **`Experiment<ExperimentRenderContext>`**, which extends:
+
+- `Parameterized` — `getParameterSchema`, `setParameters`
+- `Steppable` — `update`, `reset`
+- `Measurable` — `getMeasurements`
+- `SceneAttached` — `setup`, `dispose`, optional `render(alpha)`
+
+Agents should still treat this as **one** interface to implement.
 
 ## Steps
 
-1. Create `src/experiments/YourExperiment.ts` implementing the `Experiment` interface (include optional `render(alpha)` for smooth visuals).
+1. Create `src/experiments/YourExperiment.ts` implementing `Experiment<ExperimentRenderContext>` (include optional `render(alpha)` for smooth visuals).
 2. Put physics math in `src/physics/equations/yourSystem.ts` (no Three.js imports).
 3. Add one line to `src/experiments/index.ts`:
 

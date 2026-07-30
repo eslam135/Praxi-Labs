@@ -32,19 +32,21 @@ src/
 
 ### Key Design Decisions
 
-1. **Strict Experiment Interface** — All experiments implement `setup`, `update`, `reset`, `dispose`, `getMeasurements`, `getParameterSchema`, `setParameters`, and optional `render(alpha)`. Contracts live in `src/core/types.ts`.
+1. **Strict Experiment Interface** — All experiments implement `setup`, `update`, `reset`, `dispose`, `getMeasurements`, `getParameterSchema`, `setParameters`, and optional `render(alpha)`. The public `Experiment` type is composed from narrower ISP slices (`Parameterized`, `Steppable`, `Measurable`, `SceneAttached`) in `src/core/types.ts`.
 
-2. **Fixed-Timestep Physics** — 120 Hz accumulator pattern decouples simulation from render frame rate. Physics always receives `FIXED_DT`, never variable frame delta. Visuals interpolate with accumulator `alpha`.
+2. **Dependency inversion for rendering** — `core/` does not import Three.js. Setup context is `ExperimentRenderContext` from `rendering/`. `ExperimentHost` receives an `ExperimentSceneAdapter` + offscreen context factory from `main.ts`.
 
-3. **Schema-Driven UI** — No per-experiment UI. `ParameterPanel` auto-generates controls from `getParameterSchema()`.
+3. **Fixed-Timestep Physics** — 120 Hz accumulator pattern decouples simulation from render frame rate. Physics always receives `FIXED_DT`, never variable frame delta. Visuals interpolate with accumulator `alpha`.
 
-4. **Physics/Rendering Separation** — All equations live in `physics/` with zero Three.js imports. Unit-testable in Node via Vitest.
+4. **Schema-Driven UI** — No per-experiment UI. `ParameterPanel` auto-generates controls from `getParameterSchema()`.
 
-5. **Integrator Choice** — RK4 for oscillators (pendulum, spring) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy and is unstable for harmonic motion.
+5. **Physics/Rendering Separation** — All equations live in `physics/` with zero Three.js imports. Unit-testable in Node via Vitest.
 
-6. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts`.
+6. **Integrator Choice** — RK4 for oscillators (pendulum, spring) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy and is unstable for harmonic motion.
 
-7. **Light A/B Comparison** — Toggle Compare A/B to run a headless second parameter set. Only set A is shown in 3D; the graph overlays set B channels (`*__B`). Edit A / Edit B switches which parameter set the schema panel writes.
+7. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts`.
+
+8. **Light A/B Comparison** — Toggle Compare A/B to run a headless second parameter set. A/B parameter routing lives in `ComparisonController`; only set A is shown in 3D; the graph overlays set B channels (`*__B`).
 
 ### Data Flow
 
@@ -52,6 +54,7 @@ src/
 ParameterPanel → ParameterStore → ExperimentHost → Experiment.update(dt)
 Experiment.getMeasurements() → (+ optional B merge) → GraphSystem + ScalarDisplay
 SimulationLoop (fixed dt) → ExperimentHost.fixedUpdate() → Experiment.render(alpha)
+main.ts → ExperimentSceneAdapter / offscreen factory → Host (DIP)
 ```
 
 ## Experiments

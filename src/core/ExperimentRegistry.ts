@@ -9,17 +9,17 @@ import type { ExperimentRegistration } from './types';
 
 const registry = new Map<string, ExperimentRegistration>();
 
-export function registerExperiment(entry: ExperimentRegistration): void {
+export function registerExperiment<C = unknown>(entry: ExperimentRegistration<C>): void {
   if (registry.has(entry.id)) {
     throw new Error(`Experiment "${entry.id}" is already registered.`);
   }
-  registry.set(entry.id, entry);
+  registry.set(entry.id, entry as ExperimentRegistration);
 }
 
-export function getExperiment(id: string): ExperimentRegistration | undefined {
-  return registry.get(id);
+export function getExperiment<C = unknown>(id: string): ExperimentRegistration<C> | undefined {
+  return registry.get(id) as ExperimentRegistration<C> | undefined;
 }
 
-export function listExperiments(): ExperimentRegistration[] {
-  return Array.from(registry.values());
+export function listExperiments<C = unknown>(): ExperimentRegistration<C>[] {
+  return Array.from(registry.values()) as ExperimentRegistration<C>[];
 }

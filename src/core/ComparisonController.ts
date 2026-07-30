@@ -1,37 +1,34 @@
 /**
  * ComparisonController — light A/B parameter comparison for one experiment.
  *
- * Role: Runs a second headless experiment instance (set B) alongside the live 3D
- * experiment (set A). No second viewport — only measurement overlays on the graph.
- * Connections: Owned by ExperimentHost; GraphSystem overlays __B channels.
- * Extension: Do not add dual scenes here; keep comparison measurement-only.
+ * Role: Owns A/B parameter sets and a headless experiment B; merges measurements for graphs.
+ * Connections: Used by ExperimentHost; offscreen context factory injected (DIP).
+ * Extension: Do not add dual viewports; keep comparison measurement-only.
  */
-import * as THREE from 'three';
 import { getExperiment } from './ExperimentRegistry';
 import { MeasurementRecorder } from './MeasurementRecorder';
 import { mergeComparisonSnapshots } from './mergeComparisonSnapshots';
 import type {
   ComparisonEditTarget,
   Experiment,
-  ExperimentContext,
   MeasurementSnapshot,
+  OffscreenContextFactory,
+  Parameterized,
   ParameterValues,
 } from './types';
-import { RenderKit } from '../rendering/RenderKit';
 
-export class ComparisonController {
+export class ComparisonController<C = unknown> {
   private enabled = false;
   private editTarget: ComparisonEditTarget = 'A';
+  private paramsA: ParameterValues = {};
   private paramsB: ParameterValues = {};
-  private experimentB: Experiment | null = null;
+  private experimentB: Experiment<C> | null = null;
   private recorderB = new MeasurementRecorder();
-  private renderKitB = new RenderKit();
-  private sceneB = new THREE.Scene();
-  private rootB = new THREE.Group();
-  private cameraB = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  private disposeOffscreen: (() => void) | null = null;
+  private readonly createOffscreen: OffscreenContextFactory<C>;
 
-  constructor() {
-    this.sceneB.add(this.rootB);
+  constructor(createOffscreen: OffscreenContextFactory<C>) {
+    this.createOffscreen = createOffscreen;
   }
 
   isEnabled(): boolean {
@@ -42,6 +39,10 @@ export class ComparisonController {
     return this.editTarget;
   }
 
+  getParamsA(): ParameterValues {
+    return { ...this.paramsA };
+  }
+
   getParamsB(): ParameterValues {
     return { ...this.paramsB };
   }
@@ -50,21 +51,49 @@ export class ComparisonController {
     this.editTarget = target;
   }
 
-  setParamsB(params: ParameterValues): void {
-    this.paramsB = { ...params };
-    if (this.enabled && this.experimentB) {
-      this.experimentB.setParameters(this.paramsB);
+  /**
+   * Persist the set currently shown in the panel, switch edit target, return values for the store.
+   */
+  switchEditTarget(target: ComparisonEditTarget, currentPanelValues: ParameterValues): ParameterValues {
+    if (target === this.editTarget) {
+      return target === 'A' ? this.getParamsA() : this.getParamsB();
     }
+
+    if (this.editTarget === 'A') {
+      this.paramsA = { ...currentPanelValues };
+    } else {
+      this.paramsB = { ...currentPanelValues };
+      if (this.experimentB) {
+        this.experimentB.setParameters(this.paramsB);
+      }
+    }
+
+    this.editTarget = target;
+    return target === 'A' ? this.getParamsA() : this.getParamsB();
+  }
+
+  /**
+   * Route schema-panel edits to set A (primary experiment) or set B (headless).
+   */
+  applyPanelParams(params: ParameterValues, primary: Parameterized | null): void {
+    if (!this.enabled || this.editTarget === 'A') {
+      this.paramsA = { ...params };
+      primary?.setParameters(params);
+      return;
+    }
+    this.paramsB = { ...params };
+    this.experimentB?.setParameters(this.paramsB);
   }
 
   /**
    * Enable/disable comparison for the given experiment id.
-   * seedParams becomes the initial set-B values (typically a copy of set A).
+   * seedParams becomes the initial A and B values.
    */
   setEnabled(enabled: boolean, experimentId: string | null, seedParams: ParameterValues): void {
     if (!enabled) {
       this.teardownB();
       this.enabled = false;
+      this.editTarget = 'A';
       return;
     }
 
@@ -74,14 +103,18 @@ export class ComparisonController {
     }
 
     this.enabled = true;
+    this.paramsA = { ...seedParams };
     this.paramsB = { ...seedParams };
+    this.editTarget = 'A';
     this.attachExperiment(experimentId);
   }
 
   /** Recreate set B when the primary experiment switches. */
   onPrimaryExperimentChanged(experimentId: string, seedParams: ParameterValues): void {
+    this.paramsA = { ...seedParams };
     if (!this.enabled) return;
     this.paramsB = { ...seedParams };
+    this.editTarget = 'A';
     this.attachExperiment(experimentId);
   }
 
@@ -111,23 +144,14 @@ export class ComparisonController {
   private attachExperiment(experimentId: string): void {
     this.teardownB();
 
-    const registration = getExperiment(experimentId);
+    const registration = getExperiment<C>(experimentId);
     if (!registration) return;
 
-    this.renderKitB = new RenderKit();
     this.recorderB = new MeasurementRecorder();
-    this.rootB.clear();
+    const offscreen = this.createOffscreen(this.recorderB);
+    this.disposeOffscreen = offscreen.dispose;
     this.experimentB = registration.factory();
-
-    const context: ExperimentContext = {
-      scene: this.sceneB,
-      root: this.rootB,
-      camera: this.cameraB,
-      renderKit: this.renderKitB,
-      recorder: this.recorderB,
-    };
-
-    this.experimentB.setup(context);
+    this.experimentB.setup(offscreen.context);
     this.experimentB.setParameters(this.paramsB);
     this.experimentB.reset();
   }
@@ -137,10 +161,8 @@ export class ComparisonController {
       this.experimentB.dispose();
       this.experimentB = null;
     }
-    this.renderKitB.disposeAll();
-    while (this.rootB.children.length > 0) {
-      this.rootB.remove(this.rootB.children[0]);
-    }
+    this.disposeOffscreen?.();
+    this.disposeOffscreen = null;
     this.recorderB.clear();
   }
 }
