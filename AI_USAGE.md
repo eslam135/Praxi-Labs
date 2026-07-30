@@ -5,6 +5,16 @@
 - **Cursor IDE** with Claude (Auto agent) for architecture design, implementation, and test generation
 - Architecture rules committed in `.cursor/rules/` to enforce constraints across sessions
 
+## Agent-Extensible Path Exercised
+
+The Atwood machine experiment was added using only:
+
+1. `src/physics/equations/atwood.ts` (pure math)
+2. `src/experiments/AtwoodExperiment.ts` (glue + visuals)
+3. One `registerExperiment()` call in `src/experiments/index.ts`
+
+No changes to `ui/`, `SimulationLoop`, or `SceneManager` were required — confirming the one-file experiment rule under real use.
+
 ## Representative Prompts
 
 1. *"Design Phase 1 architecture for a modular Physics Experiments Platform with strict Experiment interface, fixed timestep, schema-driven UI, and one-file experiment rule."*

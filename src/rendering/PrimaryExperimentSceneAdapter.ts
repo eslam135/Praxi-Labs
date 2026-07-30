@@ -16,6 +16,7 @@ const EXPERIMENT_ENV: Record<string, EnvironmentStyle> = {
   pendulum: 'pendulum',
   projectile: 'projectile',
   spring: 'spring',
+  atwood: 'default',
 };
 
 export class PrimaryExperimentSceneAdapter implements ExperimentSceneAdapter<ExperimentRenderContext> {

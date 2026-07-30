@@ -1,6 +1,6 @@
 # Praxi Physics Lab
 
-A modular virtual physics laboratory built with Three.js. Three classic experiments (pendulum, projectile, spring-mass) run on a shared, extensible framework designed for AI-assisted extension.
+A modular virtual physics laboratory built with Three.js. Four classic experiments (pendulum, projectile, spring-mass, Atwood machine) run on a shared, extensible framework designed for AI-assisted extension.
 
 ## Quick Start
 
@@ -64,6 +64,7 @@ main.ts → ExperimentSceneAdapter / offscreen factory → Host (DIP)
 | Pendulum | θ'' = -(g/L)sinθ - cθ' | RK4 | Angle / Energy vs time | Measured vs theoretical period |
 | Projectile | 2D motion + optional drag | Semi-implicit Euler | x, y / Energy vs time | Predicted vs actual range |
 | Spring-mass | x'' = -(k/m)x - (c/m)x' | RK4 | Displacement / Energy vs time | Measured vs theoretical frequency |
+| Atwood | a = (m1−m2)g/(m1+m2) | RK4 | Displacement / Energy vs time | Measured vs theoretical acceleration |
 
 Energy channels (`energy_kinetic`, `energy_potential`, `energy_total`) are recorded for all experiments. The graph defaults to an **Energy (KE / PE / Total)** multi-series view when those channels exist.
 
