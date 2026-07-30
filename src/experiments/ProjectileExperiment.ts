@@ -72,7 +72,8 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
   private landingMarker: THREE.Mesh | null = null;
   private launchPad: THREE.Mesh | null = null;
   private cannon: THREE.Mesh | null = null;
-  private trailPoints: THREE.Vector3[] = [];
+  private trailPool: THREE.Vector3[] = [];
+  private trailCount = 0;
 
   setup(context: ExperimentRenderContext): void {
     this.recorder = context.recorder;
@@ -99,8 +100,13 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
     this.landingMarker = createMarker(context.renderKit, context.root, COLOR_LANDING);
     this.landingMarker.visible = false;
 
-    this.trailPoints = [new THREE.Vector3(0, 0.2, 0)];
-    this.actualTrail = createLine(context.renderKit, context.root, this.trailPoints, COLOR_ACTUAL);
+    this.trailPool = new Array(TRAIL_MAX);
+    for (let i = 0; i < TRAIL_MAX; i++) {
+      this.trailPool[i] = new THREE.Vector3();
+    }
+    this.resetTrail();
+    this.actualTrail = createLine(context.renderKit, context.root, this.trailPool, COLOR_ACTUAL);
+    updateLinePoints(this.actualTrail, this.trailPool, this.trailCount);
     this.actualTrail.visible = false;
 
     this.updatePredictedTrajectory();
@@ -158,7 +164,10 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
     this.landingX = 0;
     this.initialEnergyTotal = computeProjectileEnergy(this.state, this.params).total;
     this.recorder?.clear();
-    this.trailPoints = [new THREE.Vector3(0, 0.2, 0)];
+    this.resetTrail();
+    if (this.actualTrail) {
+      updateLinePoints(this.actualTrail, this.trailPool, this.trailCount);
+    }
 
     if (this.projectile) {
       this.projectile.position.set(0, 0.2, 0);
@@ -168,7 +177,7 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
     }
     if (this.actualTrail) {
       this.actualTrail.visible = false;
-      updateLinePoints(this.actualTrail, this.trailPoints);
+      updateLinePoints(this.actualTrail, this.trailPool, this.trailCount);
     }
     if (this.predictedLine) {
       this.predictedLine.visible = !this.launched;
@@ -190,6 +199,8 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
     this.camera = null;
     this.renderKit = null;
     this.syncCameraTarget = null;
+    this.trailPool = [];
+    this.trailCount = 0;
   }
 
   getMeasurements(): MeasurementSnapshot {
@@ -273,19 +284,32 @@ export class ProjectileExperiment implements Experiment<ExperimentRenderContext>
   }
 
   private appendTrailPoint(): void {
-    if (!this.actualTrail) return;
+    if (!this.actualTrail || this.trailPool.length === 0) return;
     const x = this.state[0];
     const y = Math.max(this.state[1], 0.05);
 
-    const last = this.trailPoints[this.trailPoints.length - 1];
-    if (last && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01) return;
+    const last = this.trailPool[Math.max(0, this.trailCount - 1)];
+    if (this.trailCount > 0 && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01) return;
 
-    this.trailPoints.push(new THREE.Vector3(x, y, 0));
-    if (this.trailPoints.length > TRAIL_MAX) {
-      this.trailPoints.shift();
+    if (this.trailCount < TRAIL_MAX) {
+      this.trailPool[this.trailCount].set(x, y, 0);
+      this.trailCount += 1;
+    } else {
+      const recycled = this.trailPool[0];
+      for (let i = 0; i < TRAIL_MAX - 1; i++) {
+        this.trailPool[i] = this.trailPool[i + 1];
+      }
+      this.trailPool[TRAIL_MAX - 1] = recycled;
+      recycled.set(x, y, 0);
     }
 
-    updateLinePoints(this.actualTrail, this.trailPoints);
+    updateLinePoints(this.actualTrail, this.trailPool, this.trailCount);
+  }
+
+  private resetTrail(): void {
+    if (this.trailPool.length === 0) return;
+    this.trailCount = 1;
+    this.trailPool[0].set(0, 0.2, 0);
   }
 
   private updatePredictedTrajectory(): void {

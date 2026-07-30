@@ -77,6 +77,13 @@ export class SessionControls {
     compareRow.appendChild(this.editWrap);
 
     root.appendChild(compareRow);
+
+    const compareHint = document.createElement('p');
+    compareHint.className = 'session-controls__hint';
+    compareHint.textContent =
+      'Compare splits the 3D view (A|B) and overlays dashed B series on the graph.';
+    root.appendChild(compareHint);
+
     options.container.appendChild(root);
   }
 

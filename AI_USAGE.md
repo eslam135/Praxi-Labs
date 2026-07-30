@@ -27,7 +27,7 @@ No changes to `ui/`, `SimulationLoop`, or `SceneManager` were required — confi
 
 5. *"Implement projectile experiment with analytic dotted trajectory preview before launch and measured vs predicted range comparison."*
 
-6. *"Add light A/B comparison: headless second experiment instance, Edit A/B parameter routing, and graph overlay of __B channels — no dual viewport."*
+6. *"Add A/B comparison: second experiment instance, Edit A/B parameter routing, dual 3D viewport, and graph overlay of __B channels."*
 
 ## Cases Where AI Output Was Wrong or Suboptimal
 
@@ -63,6 +63,14 @@ No changes to `ui/`, `SimulationLoop`, or `SceneManager` were required — confi
 
 **Fix:** Changed the center column to `minmax(0, 1fr)`, set `min-width: 0` / `overflow: hidden` on the viewport, and clamped resize width so params + a minimum viewport width always remain visible.
 
+### 5. Atwood String Clipping Through Pulley
+
+**Problem:** Two straight cable segments attached at the pulley axle height while masses sat far outboard, producing horizontal “strings” and floor penetration when travel limits were too loose.
+
+**Detection:** Visual inspection of the Atwood scene; energy cliff when velocity was zeroed at limits.
+
+**Fix:** Shared `fillPulleyCablePoints` / `createPulleyWheel` primitives for a continuous top-arc cable; hang masses under tangent points; freeze at last valid sample instead of dumping kinetic energy.
+
 ## Parts Written Fully by Hand
 
 - `.cursor/rules/` architecture constraints (pre-existing in repo)
@@ -79,7 +87,7 @@ Before any implementation, the following was designed and confirmed:
 3. **Registry pattern** — Single `experiments/index.ts` as the only registration touchpoint
 4. **Measurement system** — Framework-owned ring buffer with scalar metrics for generic UI
 5. **Simulation loop** — Fixed 120 Hz timestep with accumulator and max substep guard
-6. **Cursor rules** — 16 `.mdc` files enforcing architecture for future AI sessions
+6. **Cursor rules** — 17 `.mdc` files enforcing architecture for future AI sessions (indexed in `.cursor/rules/README.md`)
 
 **Why:** The assessment explicitly scores AI-extensibility — an agent with zero guidance must find the contract, registry, and conventions unambiguously from committed code and configuration. Designing structure first prevents inconsistent implementations across experiments and ensures the "one file + one registry entry" rule holds.
 

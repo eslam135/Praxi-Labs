@@ -10,9 +10,9 @@ import { MeasurementRecorder } from './MeasurementRecorder';
 import { mergeComparisonSnapshots } from './mergeComparisonSnapshots';
 import type {
   ComparisonEditTarget,
+  ComparisonContextFactory,
   Experiment,
   MeasurementSnapshot,
-  OffscreenContextFactory,
   Parameterized,
   ParameterValues,
 } from './types';
@@ -25,9 +25,9 @@ export class ComparisonController<C = unknown> {
   private experimentB: Experiment<C> | null = null;
   private recorderB = new MeasurementRecorder();
   private disposeContext: (() => void) | null = null;
-  private readonly createContext: OffscreenContextFactory<C>;
+  private readonly createContext: ComparisonContextFactory<C>;
 
-  constructor(createContext: OffscreenContextFactory<C>) {
+  constructor(createContext: ComparisonContextFactory<C>) {
     this.createContext = createContext;
   }
 

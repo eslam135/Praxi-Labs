@@ -100,24 +100,29 @@ export function createCable(
   return line;
 }
 
-export function updateLinePoints(line: THREE.Line, points: THREE.Vector3[]): void {
+export function updateLinePoints(
+  line: THREE.Line,
+  points: THREE.Vector3[],
+  count = points.length,
+): void {
   const geometry = line.geometry as THREE.BufferGeometry;
-  const needed = points.length * 3;
+  const n = Math.min(count, points.length);
+  const needed = n * 3;
   let attr = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
 
   if (!attr || attr.array.length < needed) {
-    attr = new THREE.BufferAttribute(new Float32Array(needed), 3);
+    attr = new THREE.BufferAttribute(new Float32Array(Math.max(needed, points.length * 3)), 3);
     geometry.setAttribute('position', attr);
   }
 
   const positions = attr.array as Float32Array;
-  for (let i = 0; i < points.length; i++) {
+  for (let i = 0; i < n; i++) {
     positions[i * 3] = points[i].x;
     positions[i * 3 + 1] = points[i].y;
     positions[i * 3 + 2] = points[i].z;
   }
   attr.needsUpdate = true;
-  geometry.setDrawRange(0, points.length);
+  geometry.setDrawRange(0, n);
   geometry.computeBoundingSphere();
   const mat = line.material;
   if (mat instanceof THREE.LineDashedMaterial) {

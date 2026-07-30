@@ -11,10 +11,10 @@ import { MeasurementRecorder } from './MeasurementRecorder';
 import { ParameterStore } from './ParameterStore';
 import type {
   ComparisonEditTarget,
+  ComparisonContextFactory,
   Experiment,
   ExperimentSceneAdapter,
   MeasurementSnapshot,
-  OffscreenContextFactory,
 } from './types';
 
 export class ExperimentHost<C = unknown> {
@@ -29,7 +29,7 @@ export class ExperimentHost<C = unknown> {
   constructor(
     parameterStore: ParameterStore,
     scene: ExperimentSceneAdapter<C>,
-    createComparisonContext: OffscreenContextFactory<C>,
+    createComparisonContext: ComparisonContextFactory<C>,
   ) {
     this.parameterStore = parameterStore;
     this.scene = scene;

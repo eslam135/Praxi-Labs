@@ -1,0 +1,118 @@
+%% Praxi Physics Lab ? class / contract diagram (current)
+%% Open in GitHub, mermaid.live, or VS Code Mermaid preview
+
+classDiagram
+  direction TB
+
+  class Experiment~C~ {
+    <<interface>>
+    Parameterized + Steppable + Measurable + SceneAttached
+  }
+
+  class ExperimentHost~C~ {
+    +switchExperiment(id)
+    +fixedUpdate(dt)
+    +render(alpha)
+    +setComparisonEnabled(bool)
+    +getMeasurements()
+  }
+
+  class ComparisonController~C~ {
+    +setEnabled(enabled, id, seed)
+    +fixedUpdate(dt)
+    +render(alpha)
+    +mergeWithPrimary(snapshot)
+  }
+
+  class SimulationLoop {
+    +FIXED_DT
+    +pause() resume()
+    +start() stop()
+  }
+
+  class ExperimentRegistry {
+    <<module>>
+    +registerExperiment(entry)
+    +getExperiment(id)
+    +listExperiments()
+  }
+
+  class ParameterStore {
+    +setSchema(schema)
+    +getValues()
+    +onChange(listener)
+  }
+
+  class MeasurementRecorder {
+    +registerChannel(id, label, unit)
+    +append(dt, samples)
+    +getSnapshot(scalars?)
+  }
+
+  ExperimentHost --> ParameterStore
+  ExperimentHost --> MeasurementRecorder
+  ExperimentHost --> ComparisonController
+  ExperimentHost --> Experiment : primary A
+  ComparisonController --> Experiment : set B
+  ComparisonController ..> ExperimentRegistry
+  SimulationLoop ..> ExperimentHost : fixedUpdate + render
+
+  class RK4
+  class SemiImplicitEuler
+  class ExplicitEuler
+  class Integrator {
+    <<interface>>
+  }
+  Integrator <|.. RK4
+  Integrator <|.. SemiImplicitEuler
+  Integrator <|.. ExplicitEuler
+
+  class PendulumExperiment
+  class ProjectileExperiment
+  class SpringExperiment
+  class AtwoodExperiment
+  Experiment <|.. PendulumExperiment
+  Experiment <|.. ProjectileExperiment
+  Experiment <|.. SpringExperiment
+  Experiment <|.. AtwoodExperiment
+
+  class SceneManager
+  class PrimaryExperimentSceneAdapter
+  class ComparisonViewport
+  class ComparisonContextFactory {
+    <<function>>
+    createComparisonContextFactory(viewport)
+  }
+  class ExperimentRenderContext {
+    <<interface>>
+    scene root camera renderKit recorder
+  }
+
+  PrimaryExperimentSceneAdapter --> SceneManager
+  ComparisonViewport --> SceneManager
+  ComparisonContextFactory ..> ComparisonViewport
+  ComparisonContextFactory ..> ExperimentRenderContext
+  PrimaryExperimentSceneAdapter ..> ExperimentRenderContext
+
+  class ParameterPanel
+  class GraphSystem
+  class ScalarDisplay
+  class SessionControls
+  class ExperimentSwitcher
+  class TopBar
+  class Main {
+    <<entrypoint>>
+  }
+
+  Main ..> ExperimentHost
+  Main ..> PrimaryExperimentSceneAdapter
+  Main ..> ComparisonViewport
+  Main ..> ComparisonContextFactory
+  Main ..> SimulationLoop
+  Main ..> SessionControls
+  Main ..> ExperimentSwitcher
+  Main ..> TopBar
+  ParameterPanel --> ParameterStore
+  ExperimentSwitcher --> ExperimentHost
+  SessionControls ..> ExperimentHost
+  GraphSystem ..> MeasurementSnapshot

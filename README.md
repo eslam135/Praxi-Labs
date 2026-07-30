@@ -26,9 +26,11 @@ src/
   core/           # Simulation loop, registry, types, parameter store, A/B comparison
   experiments/    # One file per experiment + index.ts registry
   physics/        # Pure math: integrators, equations, analysis
-  rendering/      # Three.js scene manager and primitives
+  rendering/      # Three.js scene manager, dual viewport, primitives
   ui/             # Schema-driven parameter panel, graph, scalar display
 ```
+
+Class diagram and layer notes: [`architecture/`](./architecture/).
 
 ### Key Design Decisions
 
@@ -42,11 +44,11 @@ src/
 
 5. **Physics/Rendering Separation** — All equations live in `physics/` with zero Three.js imports. Unit-testable in Node via Vitest.
 
-6. **Integrator Choice** — RK4 for oscillators (pendulum, spring) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy and is unstable for harmonic motion. Pendulum/Spring expose a **Use explicit Euler** toggle so Compare A/B can overlay RK4 (Set A) vs Euler (Set B) on `energy_total`.
+6. **Integrator Choice** — RK4 for oscillators (pendulum, spring, Atwood) to avoid energy drift. Semi-implicit Euler for projectile (non-oscillatory, with drag). Plain explicit Euler is avoided for oscillators because it systematically gains energy. Pendulum/Spring expose a **Use explicit Euler** toggle so Compare A/B can show RK4 (Set A) vs Euler (Set B).
 
-7. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts`.
+7. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts` (plus pure math under `physics/equations/`).
 
-8. **A/B Comparison** — Toggle Compare A/B for a dual 3D viewport (A left, B right, cameras synced) plus dashed B overlays on Time Series. Edit params for Set A or Set B from the left panel. For integrator pedagogy: enable Compare, leave Set A with **Use explicit Euler** off, switch to Set B and turn the toggle on — watch both scenes and Energy diverge.
+8. **A/B Comparison** — Toggle Compare A/B for a dual 3D viewport (A left, B right, cameras synced from A) plus dashed B overlays on Time Series. Edit params for Set A or Set B from the left panel.
 
 ### Data Flow
 
@@ -54,16 +56,23 @@ src/
 ParameterPanel → ParameterStore → ExperimentHost → Experiment.update(dt)
 Experiment.getMeasurements() → (+ optional B merge) → GraphSystem + ScalarDisplay
 SimulationLoop (fixed dt) → ExperimentHost.fixedUpdate() → Experiment.render(alpha)
-main.ts → ExperimentSceneAdapter / comparison context factory → Host (DIP)
+main.ts → adapters / ComparisonViewport → Host (DIP)
 ```
+
+### UI Layout
+
+- **Header** — brand only
+- **Left panel** — experiment pills, Pause/Reset, Compare A/B, schema parameters
+- **Center** — 3D viewport (splits into A|B when comparing)
+- **Right panel** — scalar metrics + Time Series (energy/channels, scrub, CSV export)
 
 ## Experiments
 
 | Experiment | Equation | Integrator | Graph | Scalar Metrics |
 |-----------|----------|------------|-------|----------------|
-| Pendulum | θ'' = -(g/L)sinθ - cθ' | RK4 | Angle / Energy vs time | Measured vs theoretical period |
+| Pendulum | θ'' = -(g/L)sinθ - cθ' | RK4 | Angle / Energy vs time | Measured vs large-angle series period |
 | Projectile | 2D motion + optional drag | Semi-implicit Euler | x, y / Energy vs time | Predicted vs actual range |
-| Spring-mass | x'' = -(k/m)x - (c/m)x' | RK4 | Displacement / Energy vs time | Measured vs theoretical frequency |
+| Spring-mass | x'' = -(k/m)x - (c/m)x' | RK4 | Displacement / Energy vs time | Measured vs underdamped frequency |
 | Atwood | a = (m1−m2)g/(m1+m2) | RK4 | Displacement / Energy vs time | Measured vs theoretical acceleration |
 
 Energy channels (`energy_kinetic`, `energy_potential`, `energy_total`) are recorded for all experiments. The graph defaults to an **Energy (KE / PE / Total)** multi-series view when those channels exist. Experiments also expose an **Energy Drift (%)** scalar — `|E − E₀| / |E₀| × 100` from reset — omitted when `|E₀| ≈ 0`.
@@ -96,7 +105,7 @@ See also `src/experiments/README.md`.
 
 ## AI Agent Environment
 
-Cursor rules in `.cursor/rules/` enforce architecture constraints (experiment interface, fixed timestep, module boundaries, no hardcoded UI). See `.cursor/rules/` for the full set. Documented further in `AI_USAGE.md`.
+Cursor rules in [`.cursor/rules/`](./.cursor/rules/) enforce architecture constraints (experiment interface, fixed timestep, module boundaries, no hardcoded UI). Index: [`.cursor/rules/README.md`](./.cursor/rules/README.md). Workflow notes: [`AI_USAGE.md`](./AI_USAGE.md).
 
 ## Known Limitations
 
@@ -104,10 +113,12 @@ Cursor rules in `.cursor/rules/` enforce architecture constraints (experiment in
 - Spring frequency theory uses the underdamped formula `f = √(ω₀² − γ²)/(2π)`; critical/overdamped cases report no oscillation frequency.
 - Projectile drag uses quadratic form `-c |v| v` (coefficient units documented in the UI).
 - Compare mode syncs cameras from A→B (orbit the left view); B is not independently orbitable.
-- Mobile layout is not optimized.
 - Graph scrubbing is read-only over recorded samples (no 3D timeline rewind).
+- Mobile / narrow layouts are usable but not a design target (assessment targets desktop browsers).
 
 ## What I Would Do Next
 
-- Dual viewport comparison is implemented (synced cameras; A left / B right)
-- Trail pooling for projectile to remove occasional Vector3 pushes
+- Independent orbit controls on compare pane B (optional unlock)
+- Phase-space plot mode from existing measurement channels
+- Elliptic-integral pendulum period for large amplitudes
+- Addressables-style trail / particle pooling beyond the projectile ring buffer
