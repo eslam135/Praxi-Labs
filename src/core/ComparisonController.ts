@@ -1,9 +1,9 @@
 /**
- * ComparisonController — light A/B parameter comparison for one experiment.
+ * ComparisonController — A/B parameter comparison for one experiment.
  *
- * Role: Owns A/B parameter sets and a headless experiment B; merges measurements for graphs.
- * Connections: Used by ExperimentHost; offscreen context factory injected (DIP).
- * Extension: Do not add dual viewports; keep comparison measurement-only.
+ * Role: Owns A/B parameter sets and experiment B (second viewport); merges measurements for graphs.
+ * Connections: Used by ExperimentHost; context factory injected from rendering/ (DIP).
+ * Extension: Set B is shown in the right 3D pane; Time Series still overlays dashed B channels.
  */
 import { getExperiment } from './ExperimentRegistry';
 import { MeasurementRecorder } from './MeasurementRecorder';
@@ -24,11 +24,11 @@ export class ComparisonController<C = unknown> {
   private paramsB: ParameterValues = {};
   private experimentB: Experiment<C> | null = null;
   private recorderB = new MeasurementRecorder();
-  private disposeOffscreen: (() => void) | null = null;
-  private readonly createOffscreen: OffscreenContextFactory<C>;
+  private disposeContext: (() => void) | null = null;
+  private readonly createContext: OffscreenContextFactory<C>;
 
-  constructor(createOffscreen: OffscreenContextFactory<C>) {
-    this.createOffscreen = createOffscreen;
+  constructor(createContext: OffscreenContextFactory<C>) {
+    this.createContext = createContext;
   }
 
   isEnabled(): boolean {
@@ -73,7 +73,7 @@ export class ComparisonController<C = unknown> {
   }
 
   /**
-   * Route schema-panel edits to set A (primary experiment) or set B (headless).
+   * Route schema-panel edits to set A (primary) or set B (secondary viewport).
    */
   applyPanelParams(params: ParameterValues, primary: Parameterized | null): void {
     if (!this.enabled || this.editTarget === 'A') {
@@ -123,6 +123,11 @@ export class ComparisonController<C = unknown> {
     this.experimentB.update(dt);
   }
 
+  render(alpha: number): void {
+    if (!this.enabled || !this.experimentB) return;
+    this.experimentB.render?.(alpha);
+  }
+
   reset(): void {
     if (!this.enabled || !this.experimentB) return;
     this.recorderB.clear();
@@ -148,10 +153,10 @@ export class ComparisonController<C = unknown> {
     if (!registration) return;
 
     this.recorderB = new MeasurementRecorder();
-    const offscreen = this.createOffscreen(this.recorderB);
-    this.disposeOffscreen = offscreen.dispose;
+    const created = this.createContext(this.recorderB, experimentId);
+    this.disposeContext = created.dispose;
     this.experimentB = registration.factory();
-    this.experimentB.setup(offscreen.context);
+    this.experimentB.setup(created.context);
     this.experimentB.setParameters(this.paramsB);
     this.experimentB.reset();
   }
@@ -161,8 +166,8 @@ export class ComparisonController<C = unknown> {
       this.experimentB.dispose();
       this.experimentB = null;
     }
-    this.disposeOffscreen?.();
-    this.disposeOffscreen = null;
+    this.disposeContext?.();
+    this.disposeContext = null;
     this.recorderB.clear();
   }
 }

@@ -23,8 +23,15 @@
           <section id="session-controls"></section>
           <section id="parameter-panel"></section>
         </aside>
-        <section class="viewport">
-          <canvas id="simulation-canvas"></canvas>
+        <section class="viewport" id="viewport-stage">
+          <div class="viewport-pane viewport-pane--a">
+            <span class="viewport-pane__label">A</span>
+            <canvas id="simulation-canvas"></canvas>
+          </div>
+          <div class="viewport-pane viewport-pane--b" id="comparison-pane" hidden>
+            <span class="viewport-pane__label">B</span>
+            <canvas id="comparison-canvas"></canvas>
+          </div>
         </section>
         <aside class="panel panel--results">
           <section id="scalar-display"></section>

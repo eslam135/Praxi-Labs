@@ -29,11 +29,11 @@ export class ExperimentHost<C = unknown> {
   constructor(
     parameterStore: ParameterStore,
     scene: ExperimentSceneAdapter<C>,
-    createOffscreenContext: OffscreenContextFactory<C>,
+    createComparisonContext: OffscreenContextFactory<C>,
   ) {
     this.parameterStore = parameterStore;
     this.scene = scene;
-    this.comparison = new ComparisonController(createOffscreenContext);
+    this.comparison = new ComparisonController(createComparisonContext);
 
     this.parameterStore.onChange((params) => {
       this.comparison.applyPanelParams(params, this.current);
@@ -113,6 +113,7 @@ export class ExperimentHost<C = unknown> {
 
   render(alpha: number): void {
     this.current?.render?.(alpha);
+    this.comparison.render(alpha);
   }
 
   reset(): void {

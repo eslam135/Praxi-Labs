@@ -34,7 +34,7 @@ src/
 
 1. **Strict Experiment Interface** — All experiments implement `setup`, `update`, `reset`, `dispose`, `getMeasurements`, `getParameterSchema`, `setParameters`, and optional `render(alpha)`. The public `Experiment` type is composed from narrower ISP slices (`Parameterized`, `Steppable`, `Measurable`, `SceneAttached`) in `src/core/types.ts`.
 
-2. **Dependency inversion for rendering** — `core/` does not import Three.js. Setup context is `ExperimentRenderContext` from `rendering/`. `ExperimentHost` receives an `ExperimentSceneAdapter` + offscreen context factory from `main.ts`.
+2. **Dependency inversion for rendering** — `core/` does not import Three.js. Setup context is `ExperimentRenderContext` from `rendering/`. `ExperimentHost` receives an `ExperimentSceneAdapter` + comparison context factory from `main.ts`.
 
 3. **Fixed-Timestep Physics** — 120 Hz accumulator pattern decouples simulation from render frame rate. Physics always receives `FIXED_DT`, never variable frame delta. Visuals interpolate with accumulator `alpha`.
 
@@ -46,7 +46,7 @@ src/
 
 7. **One-File Experiments** — Adding a new experiment requires one file in `experiments/` and one `registerExperiment()` call in `experiments/index.ts`.
 
-8. **Light A/B Comparison** — Toggle Compare A/B to run a headless second parameter set. A/B parameter routing lives in `ComparisonController`; only set A is shown in 3D; the graph overlays set B channels (`*__B`). For integrator pedagogy: enable Compare, leave Set A with **Use explicit Euler** off, switch Edit to Set B and turn the toggle on — watch Energy diverge.
+8. **A/B Comparison** — Toggle Compare A/B for a dual 3D viewport (A left, B right, cameras synced) plus dashed B overlays on Time Series. Edit params for Set A or Set B from the left panel. For integrator pedagogy: enable Compare, leave Set A with **Use explicit Euler** off, switch to Set B and turn the toggle on — watch both scenes and Energy diverge.
 
 ### Data Flow
 
@@ -54,7 +54,7 @@ src/
 ParameterPanel → ParameterStore → ExperimentHost → Experiment.update(dt)
 Experiment.getMeasurements() → (+ optional B merge) → GraphSystem + ScalarDisplay
 SimulationLoop (fixed dt) → ExperimentHost.fixedUpdate() → Experiment.render(alpha)
-main.ts → ExperimentSceneAdapter / offscreen factory → Host (DIP)
+main.ts → ExperimentSceneAdapter / comparison context factory → Host (DIP)
 ```
 
 ## Experiments
@@ -103,11 +103,11 @@ Cursor rules in `.cursor/rules/` enforce architecture constraints (experiment in
 - Pendulum period theory uses the first large-angle series correction `T ≈ T₀(1 + ½sin²(θ₀/2))`; very large amplitudes still deviate from the full elliptic integral.
 - Spring frequency theory uses the underdamped formula `f = √(ω₀² − γ²)/(2π)`; critical/overdamped cases report no oscillation frequency.
 - Projectile drag uses quadratic form `-c |v| v` (coefficient units documented in the UI).
-- Comparison mode is measurement/graph only — no dual 3D viewport.
+- Compare mode syncs cameras from A→B (orbit the left view); B is not independently orbitable.
 - Mobile layout is not optimized.
 - Graph scrubbing is read-only over recorded samples (no 3D timeline rewind).
 
 ## What I Would Do Next
 
-- Dual-viewport comparison if reviewers want spatial A/B side-by-side
+- Dual viewport comparison is implemented (synced cameras; A left / B right)
 - Trail pooling for projectile to remove occasional Vector3 pushes

@@ -64,10 +64,10 @@ export class SessionControls {
 
     this.editSelect = createSelect({
       id: 'comparison-edit-target',
-      label: 'Edit set',
+      label: 'Edit params for',
       options: [
-        { value: 'A', label: 'Set A (3D)' },
-        { value: 'B', label: 'Set B (graph)' },
+        { value: 'A', label: 'Set A (left view)' },
+        { value: 'B', label: 'Set B (right view)' },
       ],
       value: 'A',
       onChange: (value) => options.onEditTargetChange(value as ComparisonEditTarget),

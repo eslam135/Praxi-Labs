@@ -116,8 +116,11 @@ export interface ExperimentSceneAdapter<C> {
   disposePrimaryVisuals(): void;
 }
 
-/** Factory for headless/offscreen comparison contexts. */
-export type OffscreenContextFactory<C> = (recorder: MeasurementRecorder) => {
+/** Factory for comparison set-B contexts (visible dual viewport or headless). */
+export type OffscreenContextFactory<C> = (
+  recorder: MeasurementRecorder,
+  experimentId: string,
+) => {
   context: C;
   dispose: () => void;
 };

@@ -167,6 +167,11 @@ export class SceneManager {
     return this.camera.aspect;
   }
 
+  /** Public resize — call after layout changes (e.g. compare split). */
+  resize(): void {
+    this.handleResize();
+  }
+
   render(): void {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);

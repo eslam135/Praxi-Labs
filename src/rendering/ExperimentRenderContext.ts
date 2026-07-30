@@ -3,7 +3,7 @@
  *
  * Role: Concrete context passed to Experiment.setup(); lives in rendering/ so core
  * stays free of Three.js imports (DIP).
- * Connections: Built by ExperimentSceneAdapter / offscreen factory; used by experiments/.
+ * Connections: Built by ExperimentSceneAdapter / comparison viewport factory; used by experiments/.
  * Extension: Add shared render helpers here; do not put physics in this file.
  */
 import type * as THREE from 'three';

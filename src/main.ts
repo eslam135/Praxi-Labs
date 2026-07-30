@@ -12,7 +12,8 @@ import { SimulationLoop } from './core/SimulationLoop';
 import { listExperiments } from './core/ExperimentRegistry';
 import { SceneManager } from './rendering/SceneManager';
 import { PrimaryExperimentSceneAdapter } from './rendering/PrimaryExperimentSceneAdapter';
-import { createOffscreenExperimentContext } from './rendering/createOffscreenExperimentContext';
+import { ComparisonViewport } from './rendering/ComparisonViewport';
+import { createComparisonContextFactory } from './rendering/createComparisonExperimentContext';
 import type { ExperimentRenderContext } from './rendering/ExperimentRenderContext';
 import { ParameterPanel } from './ui/ParameterPanel';
 import { GraphSystem } from './ui/GraphSystem';
@@ -24,19 +25,25 @@ import { UIUpdateScheduler } from './ui/UIUpdateScheduler';
 import { ResultsPanelResize } from './ui/ResultsPanelResize';
 
 const canvas = document.getElementById('simulation-canvas') as HTMLCanvasElement;
-if (!canvas) throw new Error('Canvas element not found');
+const comparisonCanvas = document.getElementById('comparison-canvas') as HTMLCanvasElement;
+const comparisonPane = document.getElementById('comparison-pane') as HTMLElement;
+const viewportStage = document.getElementById('viewport-stage') as HTMLElement;
+if (!canvas || !comparisonCanvas || !comparisonPane || !viewportStage) {
+  throw new Error('Viewport elements not found');
+}
 
 const appBody = document.querySelector('.app-body') as HTMLElement;
 const resultsPanel = document.querySelector('.panel--results') as HTMLElement;
 if (!appBody || !resultsPanel) throw new Error('Layout panels not found');
 
 const sceneManager = new SceneManager(canvas);
+const comparisonViewport = new ComparisonViewport(comparisonPane, comparisonCanvas);
 const parameterStore = new ParameterStore();
 const sceneAdapter = new PrimaryExperimentSceneAdapter(sceneManager);
 const host = new ExperimentHost<ExperimentRenderContext>(
   parameterStore,
   sceneAdapter,
-  createOffscreenExperimentContext,
+  createComparisonContextFactory(comparisonViewport),
 );
 
 const parameterPanel = new ParameterPanel(
@@ -56,9 +63,18 @@ const graphSystem = new GraphSystem(document.getElementById('graph-system')!, {
 const scalarDisplay = new ScalarDisplay(document.getElementById('scalar-display')!);
 const uiScheduler = new UIUpdateScheduler(scalarDisplay, graphSystem);
 
+function refreshViewportLayout(comparing: boolean): void {
+  viewportStage.classList.toggle('is-comparing', comparing);
+  comparisonViewport.setActive(comparing);
+  sceneManager.resize();
+  comparisonViewport.resize();
+}
+
 const resultsResize = new ResultsPanelResize(resultsPanel, appBody);
 resultsResize.onResize(() => {
   graphSystem.notifyLayoutChange();
+  sceneManager.resize();
+  comparisonViewport.resize();
   window.dispatchEvent(new Event('resize'));
 });
 
@@ -91,6 +107,8 @@ const sessionControls = new SessionControls({
     }
   },
   onComparisonChange: (enabled) => {
+    // Show pane first so set-B setup sees a non-zero canvas size.
+    refreshViewportLayout(enabled);
     host.setComparisonEnabled(enabled);
     sessionControls.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
     uiScheduler.forceUpdate(host.getMeasurements());
@@ -111,7 +129,9 @@ function refreshUI(): void {
   if (!experiment) return;
   parameterPanel.bindSchema(experiment.getParameterSchema());
   parameterPanel.syncFromStore(parameterStore.getValues());
-  sessionControls.setComparisonUi(host.isComparisonEnabled(), host.getComparisonEditTarget());
+  const comparing = host.isComparisonEnabled();
+  sessionControls.setComparisonUi(comparing, host.getComparisonEditTarget());
+  refreshViewportLayout(comparing);
   graphSystem.setFollowLive(true);
   uiScheduler.forceUpdate(host.getMeasurements());
 }
@@ -131,6 +151,10 @@ loop = new SimulationLoop({
   onRender: (alpha) => {
     host.render(alpha);
     sceneManager.render();
+    if (comparisonViewport.isActive()) {
+      comparisonViewport.syncCameraFrom(sceneManager);
+      comparisonViewport.render();
+    }
     uiScheduler.tick(host.getMeasurements());
   },
 });
